@@ -7,4 +7,3 @@ class Queue(list):
             if super().__len__() >= self.limit:
                 super().pop(0)
         super().append(el)
-        
