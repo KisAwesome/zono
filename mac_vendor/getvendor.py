@@ -28,8 +28,14 @@ class MacLookup:
         return mac
 
     def lookup(self, mac):
-        mac = self.sanitise(mac)
+        mac = self.sanitise(mac.strip())
         if type(mac) == str:
             mac = mac.encode("utf8")
 
         return self.prefixes.get(mac[:6], b'Not Found').decode("utf8")
+
+
+if __name__ == '__main__':
+    import zono.mac_vendor
+    mac_lookup = zono.mac_vendor.MacLookup()
+    print(mac_lookup.lookup('00:09:0f:09:00:12'))

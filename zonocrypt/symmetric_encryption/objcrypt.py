@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
 from cryptography.fernet import Fernet
+import cryptography.fernet
 import cryptography
 import base64
 import ast
@@ -60,9 +61,9 @@ class objcrypt:
         return encrypted
 
     def __decrypt__(self, encrypted, key):
-        if not self.check_valid_key(key):
-            raise InvalidKey(
-                'Invalid key,key must be 32 long b64 encoded bytes')
+        # if not self.check_valid_key(key):
+        #     raise InvalidKey(
+        #         'Invalid key,key must be 32 long b64 encoded bytes')
         f = Fernet(key)
         decrypted = f.decrypt(encrypted)
         return decrypted.decode('utf-8')
@@ -90,12 +91,13 @@ class objcrypt:
 
         serial_obj = pickle.dumps(obj)
         string_obj = codecs.encode(serial_obj, "base64").decode()
+        print(len(string_obj))
         enc = self.__encrypt__(string_obj, key)
         return enc
 
     def decrypt(self, enc_obj, key):
+        print(len(enc_obj))
         if not enc_obj:
-
             return enc_obj
         if not self.check_valid_key(key):
             raise InvalidKey(
@@ -111,3 +113,7 @@ class objcrypt:
 
     def decode(self,encobj):
         return pickle.loads(encobj)
+
+
+
+

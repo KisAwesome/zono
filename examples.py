@@ -4,3 +4,7 @@ q = zono.Queue.Queue(5)
 for i in range(7):
     q.append(i)
 print(q)
+
+
+def completer(ctx):
+    return ['snake','pong','tetris']

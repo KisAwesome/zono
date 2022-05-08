@@ -5,11 +5,10 @@ import inspect
 
 class Module():
     def __new__(cls):
-        CLASS = super().__new__(cls)
         commands = []
         events = []
-        for i in dir(CLASS):
-            kv = getattr(CLASS, i)
+        for i in dir(cls):
+            kv = getattr(cls, i)
             if isinstance(kv, Command) or isinstance(kv, _Module):
                 commands.append(kv)
             elif isinstance(kv,Event):
@@ -19,7 +18,8 @@ class Module():
         module = _Module(name, description)
         module.commands = commands
         Module.__init__(cls)
-        CLASS.__init__()
+        cls._module_ = module
+        cls.__init__(cls)
         module.load_events()
         for i in events:
             module.register_event(i.name,i.callback)
