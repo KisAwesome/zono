@@ -7,7 +7,6 @@ import collections.abc
 import sys
 import traceback
 
-
 class Application:
     def __init__(self):
         self.modules = []
@@ -21,9 +20,9 @@ class Application:
         self.store = Store()
         self._invoking = None
         if 'libedit' in readline.__doc__:
-            # readline.parse_and_bind("bind -e")
-            # readline.parse_and_bind("bind '\t' rl_complete")
+            readline.set_completer_delims(' \t\n;')
             readline.parse_and_bind("bind ^I rl_complete")
+            readline.parse_and_bind("tab: complete")
         else:
             readline.parse_and_bind("tab: complete")
 
@@ -44,6 +43,7 @@ class Application:
             if i != '' or i != ' ':
                 l.append(i)
 
+        
         if len(l) == 1:
             if not self.indentation:
                 cmds = list(map(lambda x: x.name, self.modules))
@@ -88,11 +88,15 @@ class Application:
                 raise ValueError(
                     'Completion must be list, MatchCompleter or NoMatchCompleter')
 
-    def exit_app(self):
+    def stop_input(self):
         self._input_stop = True
+
+
+    def exit_app(self):
+        self.stop_input()
         if self.kill_on_exit:
             self.kill_app()
-        sys.exit()
+        # sys.exit()
 
     def kill_app(self, status=0):
         print()
@@ -132,13 +136,13 @@ class Application:
                     self._invoking = None
 
                 except CommandError as e:
+                    self._invoking = None
                     if base.error_handler:
                         return base.error_handler(e.ctx, e.error)
                     if self.isevent('on_command_error'):
                         return self.run_event('on_command_error', e.ctx, e.error)
 
                     raise e
-
                 return 
 
         if self.indentation != []:
@@ -157,6 +161,7 @@ class Application:
                         self._invoking = None
 
                     except CommandError as e:
+                        self._invoking = None
                         if command.error_handler:
                             return command.error_handler(e.ctx, e.error)
                         if self.on_command_error:
@@ -170,7 +175,7 @@ class Application:
                         return
                     self.indentation.append(command)
                     self.run_event('indentation_changed',
-                                   Context('None', self))
+                                   Context('', self))
                     return 0
 
         self.run_event('command_not_found', Context(
@@ -271,7 +276,7 @@ class Application:
 
     def main_menu(self):
         if self.indentation:
-            return self.run_event('indentation_changed', Context('None', self))
+            return self.run_event('indentation_changed', Context('', self))
         message = ''
 
         base_names = list(map(lambda x: x.name, self.base_commands))
@@ -322,7 +327,7 @@ class Application:
         print('The command you entered does not exist.')
 
     def indentation_changed(self, ctx):
-        self.basecmd.help(ctx)
+        self.basecmd._class_.help(ctx)
 
     def module(self, name, description=''):
         module = Module(name, description=description)
@@ -352,47 +357,9 @@ class Application:
         self.run_event('kill_app')
 
     def load_base_commands(self):
-        basecmd = BaseCommands()
-        self.basecmd = basecmd
-        self.base_commands.append(
-            Command('help', basecmd.help, 'Shows this help message'))
+        self.basecmd = BaseCommands()
+        self.base_commands = self.basecmd.commands
 
-        self.base_commands.append(
-            Command('..', basecmd.back, 'Goes back'))
-
-        self.base_commands.append(
-            Command('exit', basecmd.exit, 'Exits the application'))
-
-        self.base_commands.append(
-            Command('clear', basecmd.clear, 'Clears the screen'))
-        shell = Command('$', basecmd.shell_command, 'Runs a shell command')
-        self.base_commands.append(shell)
-        thread_cmd = Command('thread', basecmd.run_in_thread,
-                             'Runs command in thread')
-        self.base_commands.append(thread_cmd)
-
-        @shell.completer
-        def shell_completer(ctx):
-            if not self.windows:return []
-            if not getattr(ctx.app.store, '_shell_commands', None):
-                shell_commands = []
-                for i in os.getenv('path').split(';'):
-                    if not os.path.exists(i):
-                        continue
-                    for j in os.listdir(i):
-                        _type = os.path.splitext(f'{i}\\{j}')[1].lower()
-                        if not _type == '.exe' or _type == '.bat':
-                            continue
-                        shell_commands.append(j)
-
-                ctx.app.store._shell_commands = shell_commands
-            return ctx.app.store._shell_commands
-
-        @thread_cmd.completer
-        def thread_completer(ctx):
-            cmds = ctx.app.indentation[-1].commands[:]
-            cmds.extend(ctx.app.base_commands)
-            return list(map(lambda x: x.name, cmds))
 
     def run(self):
         self.main_menu()

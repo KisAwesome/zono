@@ -29,16 +29,18 @@ class Module():
     def __init__(self):
         for k, v in inspect.getmembers(self):
             if isinstance(v, Command):
+                v.callback.instance = self
                 v.instance = self
                 setattr(self, k, v)
 
             elif isinstance(v,CommandEvent):
                 v.instance = self
+                v.callback.instance = self
                 setattr(self,k,v)
 
             elif isinstance(v,Event):
-                print('d')
                 v.instance = self
+                v.callback.instance = self
                 setattr(self,k,v)
 
             
