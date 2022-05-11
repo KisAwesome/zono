@@ -1,14 +1,15 @@
+from typing import Any
 from .exceptions import CommandError, CommandAlreadyRegistered
 import sys
 import traceback
 
 
-def command(name=None, description=''):
+def command(name=None, description='',help=''):
     def wrapper(func):
         if not callable(func):
             raise ValueError('Command function must be callable')
         cmd_name = name or func.__name__
-        return Command(cmd_name, func, description)
+        return Command(cmd_name, func, description,help_=help)
 
     return wrapper
 
@@ -38,20 +39,22 @@ class NoMatchCompleter:
         self.list.append(None)
 
 
-class Store:
-    def __init__(self, ref={}):
-        for i in ref:
-            if isinstance(ref[i], dict):
-                ref[i] = Store(ref[i])
-            setattr(self, i, ref[i])
 
-    def __setitem__(self, key, value):
-        if isinstance(value, dict):
-            value = Store(value)
-        setattr(self, key, value)
 
-    def __getitem__(self, key):
-        return getattr(self, key, None)
+#  import zono.cli;app = zono.cli.Application();store=app.store
+class Store(dict):
+    dictattrs = ['__class__', '__class_getitem__', '__contains__', '__delattr__', '__delitem__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getitem__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__ior__', '__iter__', '__le__', '__len__', '__lt__', '__ne__', '__new__', '__or__', '__reduce__', '__reduce_ex__', '__repr__', '__reversed__', '__ror__', '__setattr__', '__setitem__', '__sizeof__', '__str__', '__subclasshook__', 'clear', 'copy', 'fromkeys', 'get', 'items', 'keys', 'pop', 'popitem', 'setdefault', 'update', 'values']
+    def __setattr__(self, __name: Any, __value: Any) -> None:
+        if __name in Store.dictattrs:
+            return super().__setattr__(__name,__value)
+        return super().__setitem__(__name, __value)
+
+    def __getattribute__(self, __name: Any) -> Any:
+        if __name in Store.dictattrs:
+            return super().__getattribute__(__name)
+        return super().__getitem__(__name)
+
+    
 
 
 class Context:
@@ -87,15 +90,16 @@ class Event:
     def __init__(self,callback,name):
         self.name = name
         self.callback = callback
-        self.instance = getattr(callback, 'instance', None)
+        # self.instance = getattr(callback, 'instance', None)
         
 
     def __call__(self, *args, **kwds):
-        self.instance = getattr(self.callback, 'instance', None)
+        # print(self.instance)
+        self.instance = getattr(self.callback, 'instance',None)
         if self.instance:
-            self.callback(self.instance,*args,**kwds)
+            return self.callback(self.instance,*args,**kwds)
         else:
-            self.callback(*args,**kwds)
+            return self.callback(*args,**kwds)
 
 class CommandEvent:
     def __init__(self,callback):
@@ -105,12 +109,12 @@ class CommandEvent:
     def __call__(self, *args, **kwds):
         self.instance = getattr(self.callback, 'instance', None)
         if self.instance:
-            self.callback(self.instance,*args,**kwds)
+            return self.callback(self.instance,*args,**kwds)
         else:
-            self.callback(*args,**kwds)
+            return self.callback(*args,**kwds)
 
 class Command:
-    def __init__(self, name, callback, description='', threadable=True, hidden=False):
+    def __init__(self, name, callback, description='', threadable=True, hidden=False,help_=''):
         self.description = description
         self.name = name
         self.callback = callback
@@ -119,6 +123,7 @@ class Command:
         self.threadable = threadable
         self.hidden = hidden
         self.instance = getattr(callback, 'instance', None)
+        self.help = help_
 
     def __call__(self, ctx):
         try:
@@ -149,7 +154,6 @@ class Command:
         self.error_handler = func
         return func
 
-
 class Module:
     def __init__(self, name, description=''):
         self.name = name
@@ -172,7 +176,7 @@ class Module:
                 raise CommandAlreadyRegistered(
                     f'{name} is already registered as a command')
 
-    def command(self, name=None, description='', aliases=[]):
+    def command(self, name=None, description='', aliases=[],help=''):
         def wrapper(func):
             if not callable(func):
                 raise ValueError('Command function must be callable')
@@ -180,10 +184,10 @@ class Module:
             cmd_name = name or func.__name__
             if aliases:
                 for alias in aliases:
-                    cmd = Command(alias, func, description)
+                    cmd = Command(alias, func, description,help_=help)
                     self.add_command_(cmd)
 
-            cmd = Command(cmd_name, func, description)
+            cmd = Command(cmd_name, func, description,help_=help)
             self.add_command_(cmd)
             return cmd
 
@@ -231,6 +235,7 @@ class Module:
     def _run_event(self, event, *args, **kwargs):
         ev = self.events.get(event, False)
         if ev:
+            # print(ev.instance)
             ret = ev(*args, **kwargs)
             return ret
         return

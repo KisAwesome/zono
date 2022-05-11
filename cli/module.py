@@ -17,6 +17,7 @@ class Module():
         description = getattr(cls, 'description', getattr(cls,'__doc__',None))
         module = _Module(name, description)
         module.commands = commands
+        module._class_ = cls
         Module.__init__(cls)
         cls._module_ = module
         cls.__init__(cls)
@@ -36,6 +37,7 @@ class Module():
                 setattr(self,k,v)
 
             elif isinstance(v,Event):
+                print('d')
                 v.instance = self
                 setattr(self,k,v)
 

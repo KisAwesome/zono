@@ -1,8 +1,11 @@
 class CommandAlreadyRegistered(ValueError):
     pass
 
+class ApplicationError(Exception):
+    def __init__(self, *args):
+        super().__init__(*args)
 
-class CommandError(Exception):
+class CommandError(ApplicationError):
     def __init__(self, ctx, error, exc_info, *args, **kwargs):
         self.ctx = ctx
         self.error = error
@@ -11,7 +14,7 @@ class CommandError(Exception):
         super().__init__(*args, **kwargs)
 
 
-class EventError(Exception):
+class EventError(ApplicationError):
     def __init__(self, ctx, error, exc_info, *args, **kwargs):
         self.ctx = ctx
         self.error = error
