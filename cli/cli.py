@@ -19,17 +19,15 @@ class Application:
         self._input_stop = False
         self.store = Store()
         self._invoking = None
+        self.base_events = {}
         if 'libedit' in readline.__doc__:
-            readline.set_completer_delims(' \t\n;')
             readline.parse_and_bind("bind ^I rl_complete")
-            readline.parse_and_bind("tab: complete")
         else:
             readline.parse_and_bind("tab: complete")
 
         readline.set_completer(self.complete)
         self.kill_on_exit = False
-        # self.ctrl_c_signal = signal.signal(
-        #     signal.SIGINT, lambda x, y: self.run_event('ctrl_c_event'))
+      
         self.windows = os.name == 'nt'
         self.load_events()
         self.load_base_commands()
@@ -38,7 +36,9 @@ class Application:
         l = []
         raw_l = []
 
-        for i in readline.get_line_buffer().lstrip().split(' '):
+        buffer = readline.get_line_buffer().lstrip().split(' ')
+
+        for i in buffer:
             raw_l.append(i)
             if i != '' or i != ' ':
                 l.append(i)
@@ -63,12 +63,17 @@ class Application:
                 return
             if cmd.completer_func is None:
                 return
+
             l1 = l[:]
             l1.pop(0)
 
             args = ' '.join(l1)
-            completions = cmd.completer_func(
-                Context(args, self, completer=True))
+            try:
+                completions = cmd.completer_func(
+                    Context(args, self, completer=True,lbuffer=buffer))
+            except Exception as e:
+                print(e)
+                print(f'This error occured in the completer function for {cmd.name}')
 
             if isinstance(completions, collections.abc.Iterable):
                 completions = list(completions)
@@ -96,7 +101,13 @@ class Application:
         self.stop_input()
         if self.kill_on_exit:
             self.kill_app()
-        # sys.exit()
+    
+    def lock_indent(self):
+        self.lock_cli = True
+
+
+    def unlock_indent(self):
+        self.lock_cli = False
 
     def kill_app(self, status=0):
         print()
@@ -122,6 +133,7 @@ class Application:
             raise ValueError('Module must be an instance Module class')
         
         module.run_event('on_load',Context('',self))
+        module.application = self
         self.modules.append(module)
 
     def input_event(self, inp):
@@ -130,7 +142,7 @@ class Application:
             if base.name == inp.split(' ')[0]:
                 try:
                     self._invoking = base
-                    base(Context(inp.replace(base.name, '').strip(),
+                    base(Context(inp.replace(base.name, '',1).strip(),
                          self, command=base))
 
                     self._invoking = None
@@ -156,7 +168,7 @@ class Application:
                     try:
                         self._invoking = command
                         command(
-                            Context(inp.replace(command.name, '').strip(), self, command=command))
+                            Context(inp.replace(command.name, '',1).strip(), self, command=command))
 
                         self._invoking = None
 
@@ -189,6 +201,10 @@ class Application:
         ev = Event(func,event)
         self.events[event] = ev
         return ev
+
+    def register_base_event(self,event,func):
+        self.base_events[event] = func
+        self.register_event(event,func)
 
 
     def event(self,  event_name=None):
@@ -257,11 +273,16 @@ class Application:
                 self.run_event('on_input', INP)
 
             except KeyboardInterrupt:
-                self.run_event('on_quit')
+                self.run_event('keyboard_interrupt')
                 continue
             except EOFError:
                 self.run_event('eof')
                 continue
+
+
+    def kbd_interupt_event(self):
+        self.run_event('on_quit')
+
 
     def deafault_indentation(self, *ind, lock=False):
         if not ind:
@@ -335,18 +356,17 @@ class Application:
         return module
 
     def load_events(self):
-        if self.events_loaded:
-            return
-        self.events_loaded = True
-        self.register_event('on_input',self.input_event)
-        self.register_event('on_quit',self.quit_event)
-        self.register_event('eof',self.eof_event)
-        self.register_event('command_not_found',self.command_not_found)
-        self.register_event('indentation_changed',self.indentation_changed)
-        self.register_event('on_command_error',self.on_command_error)
-        self.register_event('on_event_error',self.on_event_error)
-        self.register_event('kill_app',self.kill_app)
-        self.register_event('ctrl_c_event',self.ctrl_c_event)
+        self.register_base_event('on_ready',lambda :None)
+        self.register_base_event('on_input',self.input_event)
+        self.register_base_event('on_quit',self.quit_event)
+        self.register_base_event('eof',self.eof_event)
+        self.register_base_event('command_not_found',self.command_not_found)
+        self.register_base_event('indentation_changed',self.indentation_changed)
+        self.register_base_event('on_command_error',self.on_command_error)
+        self.register_base_event('on_event_error',self.on_event_error)
+        self.register_base_event('kill_app',self.kill_app)
+        self.register_base_event('ctrl_c_event',self.ctrl_c_event)
+        self.register_base_event('keyboard_interrupt',self.kbd_interupt_event)
 
     def ctrl_c_event(self):
         if self._invoking:
@@ -358,8 +378,8 @@ class Application:
 
     def load_base_commands(self):
         self.basecmd = BaseCommands()
+        self.basecmd.application = self
         self.base_commands = self.basecmd.commands
-
 
     def run(self):
         self.main_menu()

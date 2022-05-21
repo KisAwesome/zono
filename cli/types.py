@@ -1,7 +1,7 @@
-from typing import Any
 from .exceptions import CommandError, CommandAlreadyRegistered
 import sys
 import traceback
+from zono.cli.store import Store
 
 
 def command(name=None, description='',help=''):
@@ -40,23 +40,8 @@ class NoMatchCompleter:
 
 
 
-
 #  import zono.cli;app = zono.cli.Application();store=app.store
-class Store(dict):
-    dictattrs = ['__class__', '__class_getitem__', '__contains__', '__delattr__', '__delitem__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getitem__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__ior__', '__iter__', '__le__', '__len__', '__lt__', '__ne__', '__new__', '__or__', '__reduce__', '__reduce_ex__', '__repr__', '__reversed__', '__ror__', '__setattr__', '__setitem__', '__sizeof__', '__str__', '__subclasshook__', 'clear', 'copy', 'fromkeys', 'get', 'items', 'keys', 'pop', 'popitem', 'setdefault', 'update', 'values']
-    def __setattr__(self, __name: Any, __value: Any) -> None:
-        if __name in Store.dictattrs:
-            return super().__setattr__(__name,__value)
-        return super().__setitem__(__name, __value)
-
-    def __getattribute__(self, __name: Any) -> Any:
-        if __name in Store.dictattrs:
-            return super().__getattribute__(__name)
-        return super().__getitem__(__name)
-
     
-
-
 class Context:
     def __init__(self, args, app, **kwargs):
         _args = args.split(' ')
@@ -90,12 +75,12 @@ class Event:
     def __init__(self,callback,name):
         self.name = name
         self.callback = callback
-        # self.instance = getattr(callback, 'instance', None)
+
         
 
     def __call__(self, *args, **kwds):
-        # print(self.instance)
-        self.instance = getattr(self.callback, 'instance',None)
+        if not hasattr(self,'instance'):
+            self.instance = getattr(self.callback, 'instance', None)
         if self.instance:
             return self.callback(self.instance,*args,**kwds)
         else:
@@ -104,10 +89,10 @@ class Event:
 class CommandEvent:
     def __init__(self,callback):
         self.callback = callback
-        self.instance = getattr(callback, 'instance', None)
 
-    def __call__(self, *args, **kwds):
-        self.instance = getattr(self.callback, 'instance', None)
+    def __call__(self, *args, **kwds): 
+        if not hasattr(self,'instance'):
+            self.instance = getattr(self.callback, 'instance', None)
         if self.instance:
             return self.callback(self.instance,*args,**kwds)
         else:
@@ -122,10 +107,11 @@ class Command:
         self.error_handler = None
         self.threadable = threadable
         self.hidden = hidden
-        self.instance = getattr(callback, 'instance', None)
         self.help = help_
 
     def __call__(self, ctx):
+        if not hasattr(self,'instance'):
+            self.instance = getattr(self.callback, 'instance', None)
         try:
             if self.instance:
                 self.callback(self.instance, ctx)
@@ -235,7 +221,6 @@ class Module:
     def _run_event(self, event, *args, **kwargs):
         ev = self.events.get(event, False)
         if ev:
-            # print(ev.instance)
             ret = ev(*args, **kwargs)
             return ret
         return
