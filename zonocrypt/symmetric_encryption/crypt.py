@@ -1,24 +1,15 @@
-import base64
-import cryptography
-from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from random import choice, randint, shuffle
-import os
+from cryptography.fernet import Fernet
+from random import shuffle
+
+import cryptography
 import secrets
-
-
-class IncorrectDecryptionKey(Exception):
-    pass
-
-
-class InvalidHash(Exception):
-    pass
-
-
-class InvalidKey(Exception):
-    pass
+import base64
+import uuid
+import time
+import os
 
 
 class zonocrypt:
@@ -32,12 +23,21 @@ class zonocrypt:
     SHA3_384 = hashes.SHA3_384
     SHA3_512 = hashes.SHA3_512
 
-    hashes = [SHA224, SHA256, SHA512, SHA512_224,
-              SHA512_256, SHA3_224, SHA3_256, SHA3_384, SHA3_512]
+    hashes = [
+        SHA224,
+        SHA256,
+        SHA512,
+        SHA512_224,
+        SHA512_256,
+        SHA3_224,
+        SHA3_256,
+        SHA3_384,
+        SHA3_512,
+    ]
 
     def __init__(self, hash_algorithm=SHA512):
         if hash_algorithm not in zonocrypt.hashes:
-            raise TypeError('Unsupported hash algorithm')
+            raise TypeError("Unsupported hash algorithm")
         self.hash_algorithm = hash_algorithm
 
     def encrypt(self, entity, key):
@@ -54,33 +54,6 @@ class zonocrypt:
             return True
         return False
 
-    def generate_certicate(self, length='RAND_LENGTH', start=12):
-        chars = [
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c',
-            'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
-            'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C',
-            'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-            'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '!', '"', '#',
-            '$', '%', '&', "'", '(', ')', '*', '+', ',', '-', '.', ':', ';',
-            '<', '=', '>', '?', '@', '[', ']', '^', '_', '`', '{', '|', '}',
-            '~', '\"', '\''
-        ]
-        fin = ''
-        if length == 'RAND_LENGTH':
-            for i in range(randint(12, 24)):
-                for i in range(randint(1, 6)):
-                    fin = f'{fin}{choice(chars)}'
-                fin = f'{fin}/'
-            return fin
-        elif isinstance(length, int):
-            for i in range(start, length):
-                for i in range(randint(1, 6)):
-                    fin = f'{fin}{choice(chars)}'
-                fin = f'{fin}/'
-            return fin
-        else:
-            raise TypeError('Expected int or cls.RAND_LENGTH')
-
     def encrypt_bytes(self, entity, key):
         f = Fernet(key)
         encrypted = f.encrypt(entity)
@@ -88,19 +61,34 @@ class zonocrypt:
 
     def decrypt(self, encrypted, key):
         f = Fernet(key)
-        decrypted = f.decrypt(encrypted)
+        try:
+            decrypted = f.decrypt(encrypted)
+        except cryptography.fernet.InvalidToken:
+            raise IncorrectDecryptionKey("Incorrect Decryption key")
 
-        return decrypted.decode('utf-8')
+        return decrypted.decode("utf-8")
+
+    def create_safe_identifier(self, ref, len=32):
+        ref = f"{ref}{uuid.uuid4().int}{time.time()}"
+        return (
+            self.hashing_function(ref, length=len, valid_key=True, salt=os.urandom(32))
+            .decode("utf-8")
+            .replace("-", "")
+            .replace("=", "")
+            .replace("_", "")
+        )
 
     def str_to_valid_key(self, ref):
-        salt = 'salty'.encode()
+        salt = "salty".encode()
         password = ref.encode()
 
-        kdf = PBKDF2HMAC(algorithm=self.hash_algorithm(),
-                         length=32,
-                         salt=salt,
-                         iterations=100000,
-                         backend=default_backend())
+        kdf = PBKDF2HMAC(
+            algorithm=self.hash_algorithm(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+            backend=default_backend(),
+        )
         key = base64.urlsafe_b64encode(kdf.derive(password))
 
         return key
@@ -110,30 +98,36 @@ class zonocrypt:
         try:
             decrypted = f.decrypt(encrypted)
         except cryptography.fernet.InvalidToken:
-            raise IncorrectDecryptionKey('Incorrect Decryption key')
+            raise IncorrectDecryptionKey("Incorrect Decryption key")
         return decrypted
 
     def __gen_key__(self, ref):
         password_provided = ref
         password = password_provided.encode()
         salt = os.urandom(16)
-        kdf = PBKDF2HMAC(algorithm=self.hash_algorithm(),
-                         length=32,
-                         salt=salt,
-                         iterations=100000,
-                         backend=default_backend())
+        kdf = PBKDF2HMAC(
+            algorithm=self.hash_algorithm(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+            backend=default_backend(),
+        )
         key = base64.urlsafe_b64encode(kdf.derive(password))
 
         return key
 
-    def hashing_function(self, ref,iterations=100000,length=32,valid_key=True,salt=b'salt'):
+    def hashing_function(
+        self, ref, iterations=100000, length=32, valid_key=True, salt=b"salt"
+    ):
         password_provided = ref
         password = password_provided.encode()
-        kdf = PBKDF2HMAC(algorithm=self.hash_algorithm(),
-                         length=length,
-                         salt=salt,
-                         iterations=iterations,
-                         backend=default_backend())
+        kdf = PBKDF2HMAC(
+            algorithm=self.hash_algorithm(),
+            length=length,
+            salt=salt,
+            iterations=iterations,
+            backend=default_backend(),
+        )
 
         if valid_key:
             return base64.urlsafe_b64encode(kdf.derive(password))
@@ -141,7 +135,7 @@ class zonocrypt:
             return kdf.derive(password)
 
     def gen_key(self):
-        return self.__gen_key__(secrets.token_urlsafe())
+        return self.__gen_key__(uuid.uuid4().urn)
 
     def gen_hash(self):
         return self.__gen_key__(secrets.token_urlsafe())
@@ -157,9 +151,9 @@ class zonocrypt:
 
     def randint(self):
         byte = os.urandom(16)
-        return int.from_bytes(byte, 'big')
+        return int.from_bytes(byte, "big")
 
     def shuffle(self, string):
         string = list(string)
         shuffle(string)
-        return ''.join(string)
+        return "".join(string)

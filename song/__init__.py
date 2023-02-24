@@ -5,7 +5,8 @@ from random import choice
 from mutagen.id3 import ID3
 import vlc
 import os
-print('Thnaks for using zono')
+
+print("Thnaks for using zono")
 
 # os.add_dll_directory(r'C:\Program Files\VideoLAN\VLC')
 
@@ -47,7 +48,7 @@ class song:
         self.keywords = tuple(tags_)
 
         if self.title == None:
-            self.title = os.path.basename(path).replace('.mp3', '')
+            self.title = os.path.basename(path).replace(".mp3", "")
         # print(self.ide.pprint())
         # try:
         #     self.pict = self.ide.get("APIC:").data
@@ -63,9 +64,9 @@ class song:
         length = self.audio.info.length
         minutes = int(length / 60)
         seconds = int(length % 60)
-        self.length = f'{minutes}:{seconds}'
+        self.length = f"{minutes}:{seconds}"
         if seconds <= 9:
-            self.length = f'{minutes}:0{seconds}'
+            self.length = f"{minutes}:0{seconds}"
 
         # print(self.length)
 
@@ -73,7 +74,7 @@ class song:
         filesize = round(os.stat(path).st_size / (1024 * 1024), 2)
 
         self.filesize = filesize
-        self.filesize_form = f'{filesize}mb'
+        self.filesize_form = f"{filesize}mb"
         # print(self.filesize)
 
         self.path = path
@@ -84,15 +85,15 @@ class song:
 
         try:
 
-            title = mp3['TIT2'][0]
+            title = mp3["TIT2"][0]
 
         except:
 
-            title = f.split('/')[-1][:-4]
+            title = f.split("/")[-1][:-4]
 
         try:
 
-            artist = mp3['TPE1'][0]
+            artist = mp3["TPE1"][0]
 
         except:
 
@@ -100,14 +101,14 @@ class song:
 
         try:
 
-            rating = mp3['POPM:'].rating
+            rating = mp3["POPM:"].rating
 
         except:
 
             rating = "0"
         try:
             # print(mp3['TALB'])
-            album = mp3['TALB'].text[0]
+            album = mp3["TALB"].text[0]
 
         except:
 
@@ -116,13 +117,13 @@ class song:
         return (title, artist, album)
 
     def __repr__(self):
-        return f'{self.title} by {self.artist} from {self.album} {self.length} long {self.filesize_form} id{self.id}'
+        return f"{self.title} by {self.artist} from {self.album} {self.length} long {self.filesize_form} id{self.id}"
 
     def get_info(self, Id=True):
         if not Id:
-            return f'{self.title} by {self.artist} from {self.album} {self.length} long {self.filesize_form}'
+            return f"{self.title} by {self.artist} from {self.album} {self.length} long {self.filesize_form}"
 
-        return f'{self.title} by {self.artist} from {self.album} {self.length} long {self.filesize_form} id{self.id}'
+        return f"{self.title} by {self.artist} from {self.album} {self.length} long {self.filesize_form} id{self.id}"
 
     def elapsed_seconds(self):
         try:
@@ -143,7 +144,7 @@ class song:
 
     def sync(self):
         while self.isplaying():
-            print('f')
+            print("f")
             time.sleep(0.1)
 
     def stop(self):
@@ -198,11 +199,11 @@ class playlist:
             DICT = {}
             song.ids.clear()
             for i in r:
-                if not '.mp3' in i:
+                if not ".mp3" in i:
                     continue
 
                 ID = len(self.ids) + 1
-                el = song(path + '/' + i)
+                el = song(path + "/" + i)
                 DICT[(el.title, el.id)] = 0
                 self.artist_song_dict[(el.artist, el.id)] = el
                 self.album_song_dict[(el.album, el.id)] = el
@@ -251,38 +252,36 @@ class playlist:
         return song_matching_criteria
 
     def sort_by_high_song_length(self):
-        def take_first(elem):
-            return elem[0]
-        new = []
+        return [
+            self.id_song_dict[elem[1]]
+            for elem in [(song.seconds, song.id) for song in self.songs].sort(
+                key=lambda x: x[0], reverse=False
+            )
+        ]
 
-        for song in self.songs:
-            new.append((song.seconds, song.id))
+    def sort_by_a_z(self):
+        return [
+            self.id_song_dict[elem[1]]
+            for elem in [(song.name, song.id) for song in self.songs].sort(
+                key=lambda x: x[0]
+            )
+        ]
 
-        new.sort(key=take_first)
-
-        fin = []
-
-        for elem in new:
-            fin.append(self.id_song_dict[elem[1]])
-
-        return fin
+    def sort_by_z_a(self):
+        return [
+            self.id_song_dict[elem[1]]
+            for elem in [(song.name, song.id) for song in self.songs].sort(
+                key=lambda x: x[0], reverse=True
+            )
+        ]
 
     def sort_by_low_song_length(self):
-        def take_first(elem):
-            return elem[0]
-        new = []
-
-        for song in self.songs:
-            new.append((song.seconds, song.id))
-
-        new.sort(key=take_first, reverse=True)
-
-        fin = []
-
-        for elem in new:
-            fin.append(self.id_song_dict[elem[1]])
-
-        return fin
+        return [
+            self.id_song_dict[elem[1]]
+            for elem in [(song.seconds, song.id) for song in self.songs].sort(
+                key=lambda x: x[0], reverse=True
+            )
+        ]
 
     def search_playlist_song_name(self, song_name):
         songs_matching_criteria = []
@@ -310,7 +309,7 @@ class playlist:
 
         return songs_matching_criteria
 
-    def play(self, internal=False, mode='shuffle', state='forword'):
+    def play(self, internal=False, mode="shuffle", state="forword"):
         global song
 
         if self.playing:
@@ -318,10 +317,10 @@ class playlist:
 
         self.playing = True
         # song_ = choice(self.songs
-        if mode == 'shuffle':
+        if mode == "shuffle":
             song_ = choice(self.songs)
-        elif mode == 'skip':
-            if state == 'back':
+        elif mode == "skip":
+            if state == "back":
                 if self.songno < 0:
                     self.songs[0].play(self.volume)
                     self.songno += 1
@@ -333,7 +332,7 @@ class playlist:
                 self.curr_song = current_song
                 current_song.play(self.volume)
                 return 0
-            elif state == 'forword':
+            elif state == "forword":
                 if self.songno + 1 > len(self.songs):
                     return 0
                 current_song = self.songs[self.songno + 1]
@@ -353,17 +352,3 @@ class playlist:
     def stop(self):
         self.playing = False
         self.curr_song.stop()
-
-    def pause(self):
-        if playlist.shut:
-            shut = False
-
-
-# g = playlist(r'C:/Users/Karee/Music/Song')
-
-# _1 = song(r"C:\Users\Karee\Music\Song\Lil Nas X - Panini (Lyrics).mp3")
-
-# _1.play()
-# import pickle
-# with open('path.pickle', 'wb') as file:
-#     pickle.dump('', file)

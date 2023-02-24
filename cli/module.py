@@ -1,46 +1,43 @@
 from .types import Module as _Module
-from .types import Command,Event,CommandEvent
+from .types import Command, Event, CommandEvent
 import inspect
 
 
-class Module():
-    def __new__(cls):
+class Module(object):
+    def __new__(cls, *args, **kwargs):
+        cls = super().__new__(cls, *args, **kwargs)
         commands = []
         events = []
         for i in dir(cls):
             kv = getattr(cls, i)
             if isinstance(kv, Command) or isinstance(kv, _Module):
                 commands.append(kv)
-            elif isinstance(kv,Event):
+            elif isinstance(kv, Event):
                 events.append(kv)
-        name = getattr(cls, 'name', None) or cls.__name__
-        description = getattr(cls, 'description', getattr(cls,'__doc__',None))
+        name = getattr(cls, "name", None) or cls.__class__.__name__
+        description = getattr(cls, "description", getattr(cls, "__doc__", None))
         module = _Module(name, description)
         module.commands = commands
-        module._class_ = cls
-        Module.__init__(cls)
-        cls._module_ = module
-        cls.__init__(cls)
-        module.load_events()
-        for i in events:
-            module.register_event(i.name,i.callback)
-        return module
-
-    def __init__(self):
-        for k, v in inspect.getmembers(self):
+        for k, v in inspect.getmembers(cls):
             if isinstance(v, Command):
-                v.callback.instance = self
-                v.instance = self
-                setattr(self, k, v)
+                v.callback.instance = cls
+                v.instance = cls
+                setattr(cls, k, v)
 
-            elif isinstance(v,CommandEvent):
-                v.instance = self
-                v.callback.instance = self
-                setattr(self,k,v)
+            elif isinstance(v, CommandEvent):
+                v.instance = cls
+                v.callback.instance = cls
 
-            elif isinstance(v,Event):
-                v.instance = self
-                v.callback.instance = self
-                setattr(self,k,v)
+                setattr(cls, k, v)
 
-            
+            elif isinstance(v, Event):
+                v.instance = cls
+                v.callback.instance = cls
+                setattr(cls, k, v)
+
+        cls._module_ = module
+        cls.__init__(*args, **kwargs)
+        module._class_ = cls
+        for i in events:
+            module.register_event(i.name, i.callback)
+        return module

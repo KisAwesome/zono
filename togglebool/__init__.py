@@ -12,7 +12,4 @@ class toggle_bool:
         self.val = original_val
 
     def toggle(self):
-        if self.val:
-            self.val = False
-        else:
-            self.val = True
+        self.val = not self.val

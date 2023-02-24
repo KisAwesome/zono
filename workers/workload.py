@@ -1,141 +1,201 @@
-import threading
-import os
-
-
-class EmptyElement:
-    pass
-
-
-class AutoThreadsBase:
-    pass
-
-
-class MiddlewareArgument:
-    def __init__(self, iteration, _max):
-        self.iteration = iteration
-        self.max = _max
-
-
-AutoThreads = AutoThreadsBase()
+from .types import *
 
 
 class Workload:
-    AutoThreads = AutoThreadsBase()
-
-    def __init__(self, threads, daemon=False, after=None, before=None, complete=None, ordered_return=False):
+    def __init__(
+        self,
+        threads=AutoThreads,
+        daemon=False,
+        ordered_return=True,
+        worker_type=Thread,
+    ):
         if isinstance(threads, AutoThreadsBase):
-            threads = os.cpu_count()
+            threads = cpu_count()
 
         else:
             if not isinstance(threads, int):
-                raise ValueError('Threads must be an integer')
+                raise ValueError("Threads must be an integer")
 
             if threads <= 0:
-                raise ValueError('Threads cannot be less that zero')
+                raise ValueError("Threads cannot be less that zero")
 
         self.threads = threads
         self.results_dict = {}
         self.currently_running = []
         self.daemon = daemon
         self.run_queue = []
-        self.after = after
         self.results = []
-        self.before = before
         self.ordered_return = ordered_return
-        self.complete = complete
+        self.stopped = False
+        self.worker_type = worker_type
+        self.started = False
+        self.results_lock = threading.RLock()
+        zono.events.attach(self)
+        self.register_event("thread_error", self.thread_error)
 
-    def chunks(self, lst, n):
-        k, m = divmod(len(lst), n)
-        _list = (lst[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))
-        fin = []
-        for _el in _list:
-            fin.append(_el)
+    def thread_error(self, inp, error, exc_info):
+        traceback.print_exception(exc_info[0], exc_info[1], exc_info[2])
+        print(error)
+        print(f"\nthis error while running function for the value: {inp}")
 
-        return fin
+    def stop(self):
+        self.stopped = True
+        for i in self.currently_running:
+            try:
+                i.join()
+            except RuntimeError:
+                pass
+            if i in self.currently_running:
+                self.currently_running.remove(i)
+            del i
 
-    def parse_jobs(self, jobs):
-        _max = 0
-        empty = EmptyElement()
-
-        for job in jobs:
-            if len(job) > _max:
-                _max = len(job)
-
-        for index, job in enumerate(jobs):
-            if len(jobs[index]) < _max:
-                missing = _max-len(jobs[index])
-                for _missing in range(missing):
-                    jobs[index].append(empty)
-
-        return jobs, _max
+    def chunks(self, l, n):
+        return [l[i : i + n] for i in range(0, len(l), n)]
 
     def _runner_(self, func, arg, *args):
-        ret = func(arg, *args)
-        if self.ordered_return:
-            self.results_dict[arg] = ret
-        else:
-            self.results.append(ret)
+        try:
+            ret = func(arg, *args)
+        except Exception as e:
+            self.run_event("thread_error", arg, e, sys.exc_info())
 
-    def run(self, lst, callback, *args):
-        self.results.clear()
-        if len(lst) <= 0:
-            raise TypeError('Empty lists are not allowed')
-        _jobs = self.chunks(lst, self.threads)
-        jobs, _max = self.parse_jobs(_jobs)
-        if not callable(callback):
-            raise TypeError('callback must be a function')
+        with self.results_lock:
+            if self.ordered_return:
+                self.results_dict[arg] = ret
+            else:
+                self.results.append(ret)
 
-        lst = list(lst)
+        self.run_event("thread_complete", arg, ret)
 
-        for ind in range(_max):
-            for argument_ in jobs:
-                arg = argument_[ind]
-                if isinstance(arg, EmptyElement):
-                    continue
-                thread = threading.Thread(
-                    args=(callback, arg, *args,), daemon=self.daemon, target=self._runner_)
+    def terminate(self):
+        self.stopped = True
+        for i in self.currently_running:
+            i.terminate()
 
-                self.run_queue.append(thread)
-
-            if callable(self.before):
-                self.before(MiddlewareArgument(ind+1, _max))
-
-            for torun in self.run_queue:
-                self.currently_running.append(torun)
-                torun.start()
-
-            self.run_queue.clear()
-
-            for d in self.currently_running:
-                d.join()
-                del d
-
-            self.currently_running.clear()
-            if callable(self.after):
-                self.after(MiddlewareArgument(ind+1, _max))
-
-        if callable(self.complete):
-            self.complete()
-
+    def __soft_parse_returns(self):
         if not self.ordered_return:
             return self.results
         else:
             results = []
-            for i in lst:
+            for i in self.lst:
                 if i in self.results_dict:
                     results.append(self.results_dict[i])
 
             return results
 
+    def run(self, lst, callback, *args):
+        self.results.clear()
+        self.stopped = False
+        self.results_dict.clear()
+        self.run_queue.clear()
+        self.currently_running.clear()
+        self.lst = lst
+        lst = list(lst)
+
+        if self.ordered_return:
+            if len(lst) != len(set(lst)):
+                raise ValueError(
+                    "All inputed elements must be unique when using ordered_return"
+                )
+
+        if len(lst) <= 0:
+            raise TypeError("Empty lists are not allowed")
+        if not callable(callback):
+            raise TypeError("callback must be a function")
+
+        self.run_event("before_start")
+        for group_arg in self.chunks(lst, self.threads):
+            if self.stopped:
+                return StoppedWorker(self.__soft_parse_returns())
+
+            self.run_queue = [
+                self.worker_type(
+                    args=(
+                        callback,
+                        arg,
+                        *args,
+                    ),
+                    daemon=self.daemon,
+                    target=self._runner_,
+                )
+                for arg in group_arg
+            ]
+            for thread in self.run_queue:
+                thread.start()
+                self.currently_running.append(thread)
+            for i in self.currently_running:
+                i.join()
+
+            self.currently_running.clear()
+
+        if self.stopped:
+            return StoppedWorker(self.__soft_parse_returns())
+
+        if not self.ordered_return:
+            self.run_event("complete", self.results)
+            return self.results
+        else:
+
+            results = []
+            for i in lst:
+                if i in self.results_dict:
+                    results.append(self.results_dict[i])
+                else:
+                    results.append(None)
+                    warnings.warn(
+                        "Not all functions had a return value you should avoid this when using ordered returns",
+                    )
+
+            self.results = results
+            self.run_event("complete", self.results)
+            return results
+
 
 class AsynchronousWorkload(Workload):
-    def __init__(self, threads, daemon=False, after=None, before=None, complete=None):
-        super().__init__(threads, daemon=daemon, after=after, before=before, complete=complete)
-
     def run(self, lst, callback, *args):
-        thread = threading.Thread(
-            target=Workload.run, args=(self, lst, callback, *args), daemon=self.daemon)
+        self.thread = Thread(
+            target=super().run, args=(lst, callback, *args), daemon=self.daemon
+        )
 
-        thread.start()
+        self.thread.start()
 
 
+class ProgressWorkload(Workload):
+    def __init__(
+        self,
+        threads=AutoThreads,
+        daemon=None,
+        ordered_return=True,
+        worker_type=Thread,
+        tqdm_opts={},
+    ):
+
+        super().__init__(
+            threads=threads,
+            daemon=daemon,
+            ordered_return=ordered_return,
+            worker_type=worker_type,
+        )
+        self.tqdm_opts = tqdm_opts
+        self.register_base_event(
+            "thread_complete", lambda *_: self.progress_bar.update()
+        )
+        self.register_base_event("complete", lambda *_: self.progress_bar.close())
+        self.register_base_event("before_start", self.before_start)
+
+    def before_start(self):
+        self.progress_bar = tqdm.tqdm(total=len(self.lst), **self.tqdm_opts)
+
+    def stop(self):
+        if hasattr(self, "progress_bar"):
+            self.progress_bar.close()
+
+        return super().stop()
+
+    def terminate(self):
+        if hasattr(self, "progress_bar"):
+            self.progress_bar.close()
+        return super().terminate()
+
+
+class AsynchronousProgressWorkload(ProgressWorkload, AsynchronousWorkload):
+    pass

@@ -2,44 +2,31 @@ import multiprocessing
 import threading
 
 
+class Thread(threading.Thread):
+    def terminate(self):
+        if self._tstate_lock.locked():
+            self._tstate_lock.release()
+        self._stop()
+
+        if self._ident in threading.enumerate():
+            self._delete()
+
+
+# def wrap_conv(func):
+#     return func()
+#     # if __name__ == "__main__":
+
+
 class Process:
-    def __init__(self, target, daemon, args):
+    def __init__(self, *args, **kwds):
+        raise NotImplementedError
+        # self.thread = multiprocessing.Process(*args, **kwds)
 
-        self.thread = multiprocessing.Process(
-            target=target, daemon=daemon, args=args)
+    # def start(self):
+    #     return wrap_conv(self.thread.start)
 
-    def start(self):
-        return self.thread.start()
+    # def join(self):
+    #     return wrap_conv(self.thread.join)
 
-    def join(self):
-        return self.thread.join()
-
-    def terminate(self):
-        self.thread.terminate()
-
-    def kill(self):
-        self.thread.kill()
-
-    def close(self):
-        self.thread.close()
-
-
-class Thread:
-    def __init__(self, target, daemon, args):
-        self.thread = threading.Thread(
-            target=target, daemon=daemon, args=args)
-
-    def start(self):
-        return self.thread.start()
-
-    def join(self):
-        return self.thread.join()
-
-    def terminate(self):
-        raise TypeError('Thread cannot be terminated')
-
-    def kill(self):
-        raise TypeError('Thread cannot be killed')
-
-    def close(self):
-        raise TypeError('Thread cannot be closed')
+    # def terminate(self):
+    #     wrap_conv(self.thread.terminate)

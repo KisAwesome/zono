@@ -1,4 +1,4 @@
-print('Thanks for using zono')
+print("Thanks for using zono")
 
 
 class v3:
@@ -6,7 +6,7 @@ class v3:
         try:
             float(totest)
         except:
-            raise TypeError #
+            raise ValueError("Coordinate must be a float")
 
     def __init__(self, x=0, y=0, z=0):
         self.x = x
@@ -15,10 +15,13 @@ class v3:
         self.__test__(self.x)
         self.__test__(self.z)
         self.__test__(self.y)
-        self.val = (self.x, self.y, self.y)
+
+    @property
+    def val(self):
+        return (self.x, self.y, self.z)
 
     def __repr__(self):
-        return f"({self.x},{self.y},{self.z})"
+        return str(self.val)
 
     def __add__(self, V3):
         new_x = self.x + V3.x
@@ -42,7 +45,7 @@ class v3:
 
     def __truediv__(self, V3):
         if not isinstance(V3, v3):
-            raise TypeError('V3 must be an instance of v3')
+            raise TypeError("V3 must be an instance of v3")
 
         new_x = self.x / V3.x
         new_y = self.y / V3.y
@@ -53,7 +56,7 @@ class v3:
 
     def __mul__(self, V3):
         if not isinstance(V3, v3):
-            raise TypeError('V3 must be an instance of v3')
+            raise TypeError("V3 must be an instance of v3")
 
         new_x = self.x * V3.x
         new_y = self.y * V3.y
@@ -64,7 +67,7 @@ class v3:
 
     def __sub__(self, V3):
         if not isinstance(V3, v3):
-            raise TypeError('V3 must be an instance of v3')
+            raise TypeError("V3 must be an instance of v3")
 
         new_x = self.x - V3.x
         new_y = self.y - V3.y
@@ -74,50 +77,4 @@ class v3:
         return new_cord
 
     def __str__(self):
-        return f'(x{self.x},y{self.y},z{self.z})'
-
-    def Change(self, X=None, Y=None, Z=None):
-        if X != None:
-            self.x = X
-        if Y != None:
-            self.y = Y
-        if Z != None:
-            self.z = Z
-
-        self.val = (self.x, self.y, self.z)
-
-    def subtract(self, V3):
-        if not isinstance(V3, v3):
-            raise TypeError('V3 must be an instance of v3')
-
-        new_x = self.x - V3.x
-        new_y = self.y - V3.y
-        new_z = self.z - V3.z
-
-        new_cord = v3(new_x, new_y, new_z)
-        return new_cord
-
-    def divide(self, V3):
-        if not isinstance(V3, v3):
-            raise TypeError('V3 must be an instance of v3')
-
-        new_x = self.x / V3.x
-        new_y = self.y / V3.y
-        new_z = self.z / V3.z
-
-        new_cord = v3(new_x, new_y, new_z)
-        return new_cord
-
-    def multiply(self, V3):
-        if not isinstance(V3, v3):
-            raise TypeError('V3 must be an instance of v3')
-
-        new_x = self.x * V3.x
-        new_y = self.y * V3.y
-        new_z = self.z * V3.z
-
-        new_cord = v3(new_x, new_y, new_z)
-        return new_cord
-
-    def Return(self):
-        return (self.x, self.y, self.z)
+        return f"(x{self.x},y{self.y},z{self.z})"
