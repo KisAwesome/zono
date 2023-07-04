@@ -1,4 +1,3 @@
-from .securesocket import SecureSocket, ConnectionClosed
-
-# from .securesocket import _Event as event
+from .securesocket import SecureSocket
 from .client import Client
+from zono.socket import ReceiveError,SendError

@@ -4,11 +4,13 @@ import traceback
 from zono.store import Store
 from zono.events import Event, attach, EventGroup
 
-
 class Arguments(list):
     def inlist(self, index):
-        if super().__len__() - 1 >= index:
-            return True
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self))
+            return stop > start
+        elif isinstance(index, int):
+            return index < len(self)
         return False
 
     def __getitem__(self, index):
@@ -25,6 +27,7 @@ class Arguments(list):
         if not self.inlist(index):
             return
         super().__delitem__(index)
+
 
 
 def command(name=None, description="", help=""):
@@ -72,14 +75,7 @@ class NoMatchCompleter:
 
 class Context:
     def __init__(self, args, app, **kwargs):
-        _args = args.split(" ")
-        args_ = []
-        for _arg in _args:
-            if _arg == " " or _arg == "":
-                continue
-            args_.append(_arg)
-
-        self.args = Arguments(args_)
+        self.args = Arguments(args)
         self.argnum = len(self.args)
         self.app = app
         for i in kwargs:
@@ -114,7 +110,7 @@ class CommandEvent:
 
 class Command:
     def __init__(
-        self, name, callback, description="", threadable=True, hidden=False, help_=""
+        self, name, callback, description="", threadable=True, hidden=False, help_="",aliases=[]
     ):
         self.description = description
         self.name = name
@@ -125,6 +121,7 @@ class Command:
         self.hidden = hidden
         self.help = help_
         self.disabled = False
+        self.aliases = aliases
 
     def __call__(self, ctx):
         if not hasattr(self, "instance"):
@@ -138,7 +135,11 @@ class Command:
             if isinstance(e, SystemExit):
                 sys.exit()
             info = sys.exc_info()
-            raise CommandError(ctx, e, info)
+            err = CommandError(ctx, e, info)
+            if callable(self.error_handler):
+                self.error_handler(err)
+                return
+            return err
 
     def completer(self, cb):
         if not callable(cb):
@@ -187,12 +188,7 @@ class Module:
                 raise ValueError("Command function must be callable")
 
             cmd_name = name or func.__name__
-            if aliases:
-                for alias in aliases:
-                    cmd = Command(alias, func, description, help_=help)
-                    self.add_command_(cmd)
-
-            cmd = Command(cmd_name, func, description, help_=help)
+            cmd = Command(cmd_name, func, description, help_=help,aliases=aliases)
             self.add_command_(cmd)
             return cmd
 
@@ -217,6 +213,5 @@ class Module:
     def load_events(self):
         if self.events_loaded:
             return
-        self.register_event("on_event_error", self.on_event_error)
         self.register_event("on_load", self.on_load)
         self.events_loaded = True

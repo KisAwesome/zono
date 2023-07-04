@@ -2,15 +2,17 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.fernet import Fernet
-from random import shuffle
-
 import cryptography
 import secrets
 import base64
+import base58 
 import uuid
 import time
 import os
 
+
+class IncorrectDecryptionKey(Exception):
+    pass
 
 class zonocrypt:
     SHA224 = hashes.SHA224
@@ -69,14 +71,8 @@ class zonocrypt:
         return decrypted.decode("utf-8")
 
     def create_safe_identifier(self, ref, len=32):
-        ref = f"{ref}{uuid.uuid4().int}{time.time()}"
-        return (
-            self.hashing_function(ref, length=len, valid_key=True, salt=os.urandom(32))
-            .decode("utf-8")
-            .replace("-", "")
-            .replace("=", "")
-            .replace("_", "")
-        )
+        ref = f"{ref}{secrets.token_bytes(16)}{time.perf_counter()}"
+        return base58.b58encode(self.hashing_function(ref, length=len, valid_key=False, salt=os.urandom(32))).decode("utf-8")
 
     def str_to_valid_key(self, ref):
         salt = "salty".encode()
@@ -117,10 +113,12 @@ class zonocrypt:
         return key
 
     def hashing_function(
-        self, ref, iterations=100000, length=32, valid_key=True, salt=b"salt"
+        self, ref, iterations=100000, length=32, valid_key=True, salt=None
     ):
-        password_provided = ref
-        password = password_provided.encode()
+        if salt is None:
+            salt = b''
+        if isinstance(ref,str):
+            ref = ref.encode()
         kdf = PBKDF2HMAC(
             algorithm=self.hash_algorithm(),
             length=length,
@@ -130,9 +128,9 @@ class zonocrypt:
         )
 
         if valid_key:
-            return base64.urlsafe_b64encode(kdf.derive(password))
+            return base64.urlsafe_b64encode(kdf.derive(ref))
         else:
-            return kdf.derive(password)
+            return kdf.derive(ref)
 
     def gen_key(self):
         return self.__gen_key__(uuid.uuid4().urn)
@@ -152,8 +150,3 @@ class zonocrypt:
     def randint(self):
         byte = os.urandom(16)
         return int.from_bytes(byte, "big")
-
-    def shuffle(self, string):
-        string = list(string)
-        shuffle(string)
-        return "".join(string)

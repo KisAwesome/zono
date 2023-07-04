@@ -17,42 +17,38 @@
 
 import time
 import zono.workers
-from .memorystore import MemorySessionStore
 
 
 class DDOSProtection:
-    def __init__(
-        self,
-        max_packets_per_minute=60,
-        max_connections=4,
-        block_time=1800,
-        max_failed_connect_inits=6,
-        session_store=MemorySessionStore,
-    ):
-        self.max_packets_per_minute = max_packets_per_minute
-        self.max_connections = max_connections
-        self.block_time = block_time
-        self.max_failed_connect_inits = max_failed_connect_inits
-        self.session_store = session_store
-
     def __new__(
         cls,
         max_packets_per_minute=60,
         max_connections=4,
         block_time=1800,
         max_failed_connect_inits=6,
-        session_store=MemorySessionStore,
+        connection_sent_weight=10
     ):
         cls = super().__new__(cls)
-        cls.__init__(
-            max_packets_per_minute,
-            max_connections,
-            block_time,
-            max_failed_connect_inits,
-            session_store,
-        )
+        cls.max_packets_per_minute = max_packets_per_minute
+        cls.max_connections = max_connections
+        cls.block_time = block_time
+        cls.max_failed_connect_inits = max_failed_connect_inits
+        cls.connection_sent_weight = connection_sent_weight
 
-        return cls()
+        return  dict(
+            events=dict(
+                connect_check=cls.connect_check,
+                on_start=cls.on_start,
+                before_packet=cls.before_packet,
+                on_disconnect=cls.on_disconnect,
+                on_connect_fail=cls.on_connect_fail,
+                on_connect=cls.on_connect,
+                create_session=cls.create_session,
+            ),
+            paths=dict(),
+            middleware=list(),
+            setup=cls.setup,
+        )
 
     def get_session(self, addr):
         return self.server.run_event("get_session", addr[0])
@@ -89,6 +85,11 @@ class DDOSProtection:
         session[key].remove(value)
         self.save_session(addr, session)
 
+    def push_session(self, addr, key, value):
+        session = self.get_session(addr)
+        session[key].append(value)
+        self.save_session(addr, session)
+
     def session_exists(self, addr):
         if self.get_session(addr):
             return True
@@ -112,17 +113,21 @@ class DDOSProtection:
 
     def on_disconnect(self, ctx):
         self.pull_session(ctx.addr, "addresses", ctx.addr)
-        ctx.app.run_baseevent("on_disconnect", ctx)
+
 
     def before_packet(self, ctx):
+        if self.get_session_value(ctx.addr, "blocked"):
+            return False
         self.increment_session(ctx.addr, "sent")
         if self.get_session_value(ctx.addr, "sent") >= self.max_packets_per_minute:
             self.block(ctx)
             return False
 
         return True
+    
 
-    def setup_new_session(self, ctx):
+
+    def create_session(self, ctx):
         return dict(
             sent=0,
             blocked=False,
@@ -132,13 +137,13 @@ class DDOSProtection:
             failed_connections=0,
         )
 
-    def pre_session_load(self, ctx):
-        ctx.session["addresses"].append(ctx.addr)
-        return ctx.session
+    def on_connect(self, ctx):
+        print(ctx)
+        self.push_session(ctx.addr,'addresses',ctx.addr)
 
     def reset_sent(self):
         curr_time = time.time()
-        for addr, session in self.get_all_sessions().items():
+        for addr, session in self.get_all_sessions()[0].items():
             if session["blocked"]:
                 if session["unblock_time"] <= curr_time:
                     session["blocked"] = False
@@ -146,11 +151,9 @@ class DDOSProtection:
             self.save_session((addr, None), session)
 
     def on_start(self, ctx):
-        zono.workers.set_interval(60, self.reset_sent)
-        ctx.app.run_baseevent("on_start", ctx)
+        ctx.app.intervals.append(zono.workers.set_interval(60, self.reset_sent))
 
     def setup(self, ctx):
-        ctx.app.load_module(self.session_store(ctx.app))
         self.server = ctx.app
 
     def on_connect_fail(self, ctx):
@@ -162,21 +165,4 @@ class DDOSProtection:
             self.update_session(ctx.addr, "failed_connections", 0)
             self.block(ctx)
 
-        ctx.app.run_baseevent("on_connect_fail", ctx)
 
-    def __call__(self):
-        return dict(
-            events=dict(
-                connect_check=self.connect_check,
-                on_start=self.on_start,
-                before_packet=self.before_packet,
-                on_disconnect=self.on_disconnect,
-                on_connect_fail=self.on_connect_fail,
-                pre_session_load=self.pre_session_load,
-                setup_new_session=self.setup_new_session,
-                on_session_close=lambda ctx: None,
-            ),
-            paths=dict(),
-            middleware=list(),
-            setup=self.setup,
-        )

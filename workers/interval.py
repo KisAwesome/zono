@@ -1,4 +1,5 @@
 import threading
+import uuid
 
 
 _intervals = {}
@@ -11,8 +12,8 @@ class Interval(object):
         self.handler = lambda: handler(*args, **kwargs)
         self._timer = None
         self.running = False
+        self.interval_id = str(uuid.uuid4())
         with _intervals_lock:
-            self.interval_id = len(_intervals)
             _intervals[self.interval_id] = self
 
     def __next_tick(self):
@@ -22,8 +23,9 @@ class Interval(object):
     def __on_tick(self):
         if not self.running:
             return
-        self.__next_tick()
+        
         self.handler()
+        self.__next_tick()
 
     def start(self):
         if self.running:
@@ -39,12 +41,9 @@ class Interval(object):
 
 
 def set_interval(tick, handler, *args, **kwargs):
-    interval_id = len(_intervals)
-    with _intervals_lock:
-        inter = Interval(tick, handler, *args, **kwargs)
-        inter.start()
-        _intervals[interval_id] = inter
-    return interval_id
+    inter = Interval(tick, handler, *args, **kwargs)
+    inter.start()
+    return inter.interval_id
 
 
 def cancel_interval(id):
@@ -63,4 +62,4 @@ def get_interval(id):
 
 def get_intervals():
     with _intervals_lock:
-        return _intervals[:]
+        return _intervals.copy()

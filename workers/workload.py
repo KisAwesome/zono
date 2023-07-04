@@ -4,12 +4,12 @@ from .types import *
 class Workload:
     def __init__(
         self,
-        threads=AutoThreads,
-        daemon=False,
-        ordered_return=True,
+        threads:int=-1,
+        daemon:bool=False,
+        ordered_return:bool=True,
         worker_type=Thread,
     ):
-        if isinstance(threads, AutoThreadsBase):
+        if threads==-1:
             threads = cpu_count()
 
         else:
@@ -176,11 +176,11 @@ class ProgressWorkload(Workload):
             worker_type=worker_type,
         )
         self.tqdm_opts = tqdm_opts
-        self.register_base_event(
+        self.register_event(
             "thread_complete", lambda *_: self.progress_bar.update()
         )
-        self.register_base_event("complete", lambda *_: self.progress_bar.close())
-        self.register_base_event("before_start", self.before_start)
+        self.register_event("complete", lambda *_: self.progress_bar.close())
+        self.register_event("before_start", self.before_start)
 
     def before_start(self):
         self.progress_bar = tqdm.tqdm(total=len(self.lst), **self.tqdm_opts)

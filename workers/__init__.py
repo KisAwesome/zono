@@ -6,5 +6,5 @@ from .workload import (
     StoppedWorker,
     AsynchronousProgressWorkload,
 )
-from .interval import Interval, set_interval, cancel_interval, get_interval
+from .interval import Interval, set_interval, cancel_interval, get_interval,get_intervals
 from .workertypes import Thread

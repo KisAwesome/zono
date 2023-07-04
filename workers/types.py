@@ -8,10 +8,6 @@ import warnings
 import threading
 
 
-class AutoThreadsBase:
-    pass
-
-
 class StoppedWorker(list):
     def __repr__(self):
         return f"Stopped worker: {super().__repr__()}"
@@ -20,4 +16,4 @@ class StoppedWorker(list):
         return self.__repr__()
 
 
-AutoThreads = AutoThreadsBase()
+AutoThreads = -1

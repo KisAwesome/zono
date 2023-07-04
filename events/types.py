@@ -29,8 +29,6 @@ def event(event_name=None):
 
 
 class Event:
-    exception = EventError
-
     def __init__(self, callback, name):
         self.name = name
         self.callback = callback
@@ -50,19 +48,20 @@ class Event:
             if isinstance(e, SystemExit):
                 sys.exit()
             info = sys.exc_info()
-            raise __class__.exception(e, info, self)
+            if self.error_handler is not None:
+                self.error_handler(e,info,self.name)
+                return
+            return EventError(e,info,self.name)
 
     def error(self, cb):
         if not callable(cb):
             raise ValueError("Error handler function must be callable")
 
-        func = Event(cb, self.name + "_error")
-        self.error_handler = func
-        return func
+        self.error_handler = cb
+        return cb
 
 
 class EventGroup(Event):
-    exception = EventError
 
     def __init__(self, name):
         self.events = []
@@ -97,5 +96,7 @@ class EventGroup(Event):
 
             except BaseException as e:
                 info = sys.exc_info()
-                raise __class__.exception(e, info, self)
+                return EventError(e, info, self.name)
+        if len(returns) == 1:
+            return returns.pop()
         return returns
