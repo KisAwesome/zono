@@ -1,12 +1,12 @@
-import os
-import time
-import random
-import vlc
 import zono.search as search
 from mutagen.mp3 import MP3
 import yt_dlp as youtube_dl
 import requests
 import datetime
+import random
+import pafy
+import vlc
+import os
 
 
 def seconds_to_formatted_time(seconds):
@@ -200,13 +200,13 @@ class YoutubeSong(_Song):
         #         self.video = info
         # except:
         #     return -1
-
-        instance = vlc.Instance()
-        player = instance.media_player_new()
-        media = instance.media_new(self.url)
-        player.set_media(media)
-        player.play()
-        self.player = player
+        # audio = pafy.new(self.url).getbestaudio()
+        # instance = vlc.Instance()
+        # player = instance.media_player_new()
+        # media = instance.media_new(self.url)
+        # player.set_media(media)
+        # player.play()
+        self.player = vlc.MediaPlayer(self.url)
         self.player.audio_set_volume(volume)
         self._player = True
         self.is_playing = self.player.is_playing
@@ -471,4 +471,6 @@ class YouTubePlaylist(Playlist):
 
 
 if __name__ == "__main__":
-    import pprint
+    d = YoutubeSong('https://www.youtube.com/watch?v=6SLD1ZQZ_4Y')
+    d.play()
+    input()

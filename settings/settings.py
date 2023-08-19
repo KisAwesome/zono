@@ -40,7 +40,7 @@ def load_json_file(file_path):
             try:
                 json_obj = json.loads(fixed_json_data)
                 with open(file_path, "w") as json_file:
-                    json.dump(json_obj, json_file, indent=4)
+                    json.dump(json_obj, json_file, indent=4,sort_keys=True)
                 return json_obj
             except json.JSONDecodeError as e:
                 if str(e).startswith(
@@ -55,7 +55,7 @@ def load_json_file(file_path):
                     try:
                         json_obj = json.loads(fixed_json_data)
                         with open(file_path, "w") as json_file:
-                            json.dump(json_obj, json_file, indent=4)
+                            json.dump(json_obj, json_file, indent=4,sort_keys=True)
                         return json_obj
                     except json.JSONDecodeError as e:
                         return FailedToDecode()
@@ -108,7 +108,7 @@ class Settings:
 
     def save(self):
         with open(self.path, "w") as f:
-            json.dump(self.settings, f)
+            json.dump(self.settings, f,indent=4,sort_keys=True)
 
     def load(self):
         settings = load_json_file(self.path)
@@ -136,13 +136,13 @@ class Settings:
             self.save()
 
 
-def v(x):
-    state = True
-    if x not in range(100):
-        state = False
-    return state,50
 
 if __name__ == "__main__":
+    def v(x):
+        state = True
+        if x not in range(100):
+            state = False
+        return state,50
     s = Settings("test.json", (int, v, -1))
 
 

@@ -7,7 +7,7 @@ from .types import (
     Module,
     Event,
 )
-from .exceptions import CommandError, ArgumentError
+from .exceptions import CommandError #, ArgumentError
 from .basecommands import BaseCommands
 import zono.events
 import os
@@ -198,7 +198,6 @@ class Application:
                     )
 
                     self._invoking = None
-
                     if isinstance(err, CommandError):
                         if self.isevent("on_command_error"):
                             return self.run_event("on_command_error", err)
@@ -272,6 +271,7 @@ class Application:
                 continue
 
     def kbd_interupt_event(self):
+        print()
         self.run_event("on_quit")
 
     def deafault_indentation(self, *ind, lock=False):
@@ -413,17 +413,7 @@ class Application:
         self.register_event("on_command_error", self.on_command_error)
         self.register_event("on_event_error", self.on_event_error)
         self.register_event("kill_app", self.kill_app)
-        self.register_event("ctrl_c_event", self.ctrl_c_event)
         self.register_event("keyboard_interrupt", self.kbd_interupt_event)
-
-    def ctrl_c_event(self):
-        if self._invoking:
-            if self._invoking.error_handler:
-                return self._invoking.error_handler(
-                    Context([], self), KeyboardInterrupt()
-                )
-    
-        self.run_event("kill_app")
 
     def load_completer(self):
         self.current_completion = None

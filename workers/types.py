@@ -1,12 +1,4 @@
-from os import cpu_count
 from .workertypes import *
-import tqdm
-import zono.events
-import traceback
-import sys
-import warnings
-import threading
-
 
 class StoppedWorker(list):
     def __repr__(self):

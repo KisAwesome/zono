@@ -1,4 +1,5 @@
-from zono.socket import ReceiveError,SendError
+from zono.socket import ReceiveError, SendError
+
 
 class ApplicationError(Exception):
     def __init__(self, ctx, error, exc_info, *args, **kwargs):
@@ -23,5 +24,3 @@ class MiddlewareError(ApplicationError):
 class ClientError(Exception):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-

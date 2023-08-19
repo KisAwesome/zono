@@ -5,14 +5,16 @@ from cryptography.fernet import Fernet
 import cryptography
 import secrets
 import base64
-import base58 
+import base58
 import uuid
 import time
+import yaml
 import os
 
 
 class IncorrectDecryptionKey(Exception):
     pass
+
 
 class zonocrypt:
     SHA224 = hashes.SHA224
@@ -42,11 +44,6 @@ class zonocrypt:
             raise TypeError("Unsupported hash algorithm")
         self.hash_algorithm = hash_algorithm
 
-    def encrypt(self, entity, key):
-        f = Fernet(key)
-        encrypted = f.encrypt(entity.encode())
-        return encrypted
-
     def check_valid_key(self, key):
         try:
             dec_base64 = base64.urlsafe_b64decode(key)
@@ -56,23 +53,11 @@ class zonocrypt:
             return True
         return False
 
-    def encrypt_bytes(self, entity, key):
-        f = Fernet(key)
-        encrypted = f.encrypt(entity)
-        return encrypted
-
-    def decrypt(self, encrypted, key):
-        f = Fernet(key)
-        try:
-            decrypted = f.decrypt(encrypted)
-        except cryptography.fernet.InvalidToken:
-            raise IncorrectDecryptionKey("Incorrect Decryption key")
-
-        return decrypted.decode("utf-8")
-
     def create_safe_identifier(self, ref, len=32):
         ref = f"{ref}{secrets.token_bytes(16)}{time.perf_counter()}"
-        return base58.b58encode(self.hashing_function(ref, length=len, valid_key=False, salt=os.urandom(32))).decode("utf-8")
+        return base58.b58encode(
+            self.hashing_function(ref, length=len, valid_key=False, salt=os.urandom(32))
+        ).decode("utf-8")
 
     def str_to_valid_key(self, ref):
         salt = "salty".encode()
@@ -89,13 +74,22 @@ class zonocrypt:
 
         return key
 
-    def decrypt_raw(self, encrypted, key):
+    def encrypt(self, data, key):
+        f = Fernet(key)
+        if not isinstance(data, str):
+            data = self.encode(data)
+
+        return f.encrypt(data)
+
+    def decrypt(self, encrypted, key):
         f = Fernet(key)
         try:
             decrypted = f.decrypt(encrypted)
         except cryptography.fernet.InvalidToken:
             raise IncorrectDecryptionKey("Incorrect Decryption key")
-        return decrypted
+
+        return self.decode(decrypted)
+
 
     def __gen_key__(self, ref):
         password_provided = ref
@@ -116,8 +110,8 @@ class zonocrypt:
         self, ref, iterations=100000, length=32, valid_key=True, salt=None
     ):
         if salt is None:
-            salt = b''
-        if isinstance(ref,str):
+            salt = b""
+        if isinstance(ref, str):
             ref = ref.encode()
         kdf = PBKDF2HMAC(
             algorithm=self.hash_algorithm(),
@@ -131,9 +125,6 @@ class zonocrypt:
             return base64.urlsafe_b64encode(kdf.derive(ref))
         else:
             return kdf.derive(ref)
-
-    def gen_key(self):
-        return self.__gen_key__(uuid.uuid4().urn)
 
     def gen_hash(self):
         return self.__gen_key__(secrets.token_urlsafe())
@@ -150,3 +141,10 @@ class zonocrypt:
     def randint(self):
         byte = os.urandom(16)
         return int.from_bytes(byte, "big")
+    
+    def encode(self, obj):
+        return yaml.safe_dump(obj).encode("utf-8")
+
+    def decode(self, encobj):
+        return yaml.safe_load(encobj)
+

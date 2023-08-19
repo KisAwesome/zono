@@ -118,5 +118,10 @@ class EventManager:
                 delattr(self.attached_to, name)
         if hasattr(self.attached_to, "event_manager"):
             delattr(self.attached_to, "event_manager")
+            
+    def copy(self, other):
+        ev = EventManager(self.always_event_group)
+        ev.events = self.events.copy()
+        ev.attach(other)
 
 

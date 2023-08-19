@@ -1,3 +1,3 @@
-from .securesocket import SecureSocket
+# from .securesocket import SecureSocket
 from .client import Client
-from zono.socket import ReceiveError,SendError
+from zono.socket import ReceiveError, SendError, ConnectionFailed

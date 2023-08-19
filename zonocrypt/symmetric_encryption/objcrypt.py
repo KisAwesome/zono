@@ -94,8 +94,3 @@ class objcrypt:
             return enc_obj
         return self.decode(self.__decrypt__(enc_obj, key))
 
-    def encode(self, obj):
-        return yaml.safe_dump(obj).encode("utf-8")
-
-    def decode(self, encobj):
-        return yaml.safe_load(encobj)

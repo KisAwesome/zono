@@ -4,9 +4,10 @@ from zono.events import Event, EventGroup
 
 class Client(object):
     def __new__(cls, *args, **kwargs):
-        cls = super().__new__(cls)
-
         socket = SecureSocket()
+        if cls == Client:
+            return socket
+        cls = super().__new__(cls)
 
         for i in dir(cls):
             v = getattr(cls, i)

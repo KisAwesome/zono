@@ -12,22 +12,21 @@ import cryptography.hazmat.primitives.asymmetric.rsa
 import cryptography.hazmat.primitives.serialization
 import zono.colorlogger
 import zono.zonocrypt
-import zono.events
 import zono.workers
+import zono.events
 import zono.socket
-import errno
 import traceback
 import threading
-import errno
 import secrets
 import socket
+import errno
 import sys
-import os
 
 
 Crypt = zono.zonocrypt.zonocrypt()
 
 # objcrypt = zono.zonocrypt.objcrypt(hash_algorithm=zono.zonocrypt.objcrypt.SHA512)
+logger = zono.colorlogger.create_logger('server',0)
 
 class SecureServer:
     def __init__(self, ip="", port=None, event_socket=False):
@@ -55,13 +54,12 @@ class SecureServer:
         self.load_events()
         self.load_paths()
 
-
-    def wrap_event(self, event,*args,**kwargs):
-        ret = self.run_event(event,*args,**kwargs)
+    def wrap_event(self, event, *args, **kwargs):
+        ret = self.run_event(event, *args, **kwargs)
 
         n = dict()
         for i in ret:
-            n|=i
+            n |= i
         return n
 
     def server_info(self):
@@ -79,19 +77,23 @@ class SecureServer:
     def next(self):
         self.next_mw = True
 
-    def connection_status(self,conn):
+    def connection_status(self, conn): 
         # return conn.getsockopt(socket.SOL_SOCKET, socket.SO_CONNECTED)
-        if 'closed' in str(conn):
+        if "closed" in str(conn):
             return False
         try:
             data = conn.recv(1)
-            if data == b'':
+            if data == b"":
                 return True
             else:
                 return False
-   
+
         except socket.error as e:
-            if e.errno == errno.EWOULDBLOCK or e.errno == errno.EAGAIN or e.errno == errno.EBADF:
+            if (
+                e.errno == errno.EWOULDBLOCK
+                or e.errno == errno.EAGAIN
+                or e.errno == errno.EBADF
+            ):
                 return False
             else:
                 raise
@@ -103,13 +105,12 @@ class SecureServer:
         for interid in self.intervals:
             if zono.workers.get_interval(interid):
                 zono.workers.cancel_interval(interid)
-        
 
         for addr, session in self.sessions.copy().items():
             self._close_socket(session["conn"], addr)
         if hasattr(self, "socket"):
             try:
-                self.socket.shutdown(socket.SHUT_RDWR) 
+                self.socket.shutdown(socket.SHUT_RDWR)
             except:
                 pass
             self.socket.close()
@@ -175,10 +176,8 @@ class SecureServer:
         #             if self._shutting_down:
         #                 return
 
-
     def recv_loop(self, conn, addr):
         while True:
-
             try:
                 _session = self.get_session(addr)
 
@@ -188,11 +187,11 @@ class SecureServer:
                 ):
                     return self.close_socket(conn, addr)
 
-                pkt = self.recv(conn, addr,timeout=self.timeout_duration)
+                pkt = self.recv(conn, addr, timeout=self.timeout_duration)
 
                 if not self.run_event(
                     "after_packet",
-                    Context(self, conn=conn, addr=addr, session=_session,pkt=pkt),
+                    Context(self, conn=conn, addr=addr, session=_session, pkt=pkt),
                 ):
                     return self.close_socket(conn, addr)
                 ctx = Context(
@@ -203,8 +202,8 @@ class SecureServer:
                     session=_session,
                     next=self.next,
                 )
-                if pkt.get('_keepalive',None) == True:
-                    continue 
+                if pkt.get("_keepalive", None) == True:
+                    continue
                 path = pkt.get("path", None)
                 ctx.request = path
                 self.next_mw = True
@@ -213,31 +212,28 @@ class SecureServer:
                         break
                     self.next_mw = False
                     ret = i(ctx)
-                    if isinstance(ret,MiddlewareError):
+                    if isinstance(ret, MiddlewareError):
                         self.run_event("on_middleware_error", ret.ctx, ret.error)
 
                 if not self.next_mw:
                     continue
-                
 
                 if path in self.paths:
                     handler = self.paths[path]
                     del ctx.next
                     e = handler(ctx)
                     if ctx.responded is False and self._warn_missing_response:
-                        zono.colorlogger.major_log(
-                            f"Warning: {path} did not return a response to the client"
+                        logger.warning(
+                            f"{path} did not return a response to the client"
                         )
                         self._warn_missing_response = False
 
-                    if isinstance(e,RequestError):
+                    if isinstance(e, RequestError):
                         if self.isevent("on_request_error"):
                             return self.run_event("on_request_error", e.ctx, e.error)
 
                         raise e.error
 
-
-      
                 else:
                     msg = "Client requested a path which does not exist"
                     ctx.error = ClientError(msg)
@@ -252,10 +248,9 @@ class SecureServer:
 
             except ReceiveError as e:
                 return self.close_socket(conn, addr)
-          
 
     def init_connection(self, conn):
-        echo_pkt = self.recv_raw(conn, self.init_buffer,2)
+        echo_pkt = self.recv_raw(conn, self.init_buffer, 2)
         num1 = echo_pkt["num"]
 
         private_key = (
@@ -273,7 +268,7 @@ class SecureServer:
         num2 = secrets.token_bytes(32)
         self.send_raw(dict(pem=pem, kdn=num2), conn, self.init_buffer)
 
-        num_3_enc = self.recv_raw(conn, self.init_buffer,2)["num"]
+        num_3_enc = self.recv_raw(conn, self.init_buffer, 2)["num"]
 
         num3 = private_key.decrypt(
             num_3_enc,
@@ -286,13 +281,15 @@ class SecureServer:
             ),
         )
 
-        key_deriv = num1 + num2+ num3
+        key_deriv = num1 + num2 + num3
         return Crypt.hashing_function(key_deriv)
 
     def create_session(self, conn, addr):
         self.sessions[addr] = Store(conn=conn)
-        retrieved_session = self.run_event('load_session',Context(self,conn=conn, addr=addr))
-        if isinstance(retrieved_session,dict):
+        retrieved_session = self.run_event(
+            "load_session", Context(self, conn=conn, addr=addr)
+        )
+        if isinstance(retrieved_session, dict):
             self.sessions[addr] |= retrieved_session
             return
         s = self.run_event("create_session", Context(self, conn=conn, addr=addr))
@@ -302,8 +299,11 @@ class SecureServer:
 
         elif isinstance(s, dict):
             self.sessions[addr] |= s
-        
-        self.run_event('created_session',Context(self,conn=conn,addr=addr,session=self.sessions[addr]))
+
+        self.run_event(
+            "created_session",
+            Context(self, conn=conn, addr=addr, session=self.sessions[addr]),
+        )
 
     def handle_client(self, conn, addr):
         if not self.run_event("connect_check", Context(self, conn=conn, addr=addr)):
@@ -324,7 +324,7 @@ class SecureServer:
                 ),
             )
             return self.close_socket(conn, addr)
-        client_info = self.recv(conn, addr, self.init_buffer,2)
+        client_info = self.recv(conn, addr, self.init_buffer, 2)
         client_info["addr"] = addr
         client_info["conn"] = conn
         if not self.run_event("client_info", client_info):
@@ -365,19 +365,6 @@ class SecureServer:
         mw = Middleware(func)
         self.middlewares.append(mw)
         return mw
-
-    def event(self, event_name=None):
-        def wrapper(func):
-            name = event_name
-            if event_name is None:
-                name = func.__name__
-
-            if not callable(func):
-                raise ValueError("Event must be callable")
-
-            return self.register_event(name, func)
-
-        return wrapper
 
     def route(self, path):
         def wrapper(func):
@@ -431,7 +418,7 @@ class SecureServer:
         self.register_event("create_session", lambda c: dict())
         self.register_event("on_middleware_error", self.on_middleware_error)
         self.register_event("before_packet", lambda x: True)
-        self.register_event('after_packet',lambda x:True)
+        self.register_event("after_packet", lambda x: True)
         self.register_event("server_info", lambda: {})
         self.register_event("client_info", lambda x: True)
 
@@ -453,35 +440,35 @@ class SecureServer:
     def load_loggers(self):
         self.register_event(
             "on_connect",
-            lambda ctx: zono.colorlogger.log(f"{self.form_addr(ctx.addr)} connected"),
+            lambda ctx: logger.info(f"{self.form_addr(ctx.addr)} connected"),
         )
         self.register_event(
             "on_disconnect",
-            lambda ctx: zono.colorlogger.log(
+            lambda ctx: logger.log(
                 f"{self.form_addr(ctx.addr)} disconnected"
             ),
         )
         self.register_event(
             "on_start",
-            lambda ctx: zono.colorlogger.major_log(
+            lambda ctx: logger.major_log(
                 f"Server listening @{ctx.ip}:{ctx.port}"
             ),
         )
         self.register_event(
             "on_client_error",
-            lambda ctx: zono.colorlogger.error(
+            lambda ctx: logger.error(
                 f"Client error {self.form_addr(ctx.addr)}: {ctx.msg} {ctx.pkt}"
             ),
         )
         self.register_event(
             "on_connection_refusal",
-            lambda ctx: zono.colorlogger.error(
+            lambda ctx: logger.error(
                 f"{self.form_addr(ctx.addr)} connection refused"
             ),
         )
         self.register_event(
             "on_connect_fail",
-            lambda ctx: zono.colorlogger.error(
+            lambda ctx: logger.error(
                 f"{self.form_addr(ctx.addr)} connection initiation failed"
             ),
         )
@@ -496,25 +483,16 @@ class SecureServer:
 
     def send(self, pkt, conn, addr, buffer=None):
         buffer = buffer or self.buffer
-        return zono.socket.send(conn,pkt,self.get_session_key(addr),self.format,buffer)
+        return zono.socket.send(
+            conn, pkt, self.get_session_key(addr), self.format, buffer
+        )
 
-    def _recv(self,conn,buffer):
-        try:
-            return conn.recv(buffer)
-        except ConnectionResetError:
-            raise ReceiveError(5)
-        except socket.timeout:
-            raise ReceiveError(2)
-        except OSError as err:
-            if err.errno == errno.EBADF:
-                raise ReceiveError(4)
-            raise err
-
-
-    def recv(self, conn, addr, buffer=None,timeout=None):
+    def recv(self, conn, addr, buffer=None, timeout=None):
         buffer = buffer or self.buffer
 
-        return zono.socket.recv(conn,buffer,timeout,self.get_session_key(addr),self.format)
+        return zono.socket.recv(
+            conn, buffer, timeout, self.get_session_key(addr), self.format
+        )
 
     def load_module(self, module):
         if not isinstance(module, dict):
@@ -533,11 +511,11 @@ class SecureServer:
                 self.register_middleware(middleware)
 
     def send_raw(self, pkt, conn, buffer=None):
-        return zono.socket.send_raw(conn,pkt,self.format,buffer)
+        return zono.socket.send_raw(conn, pkt, self.format, buffer)
 
-    def recv_raw(self, conn, buffer=None,timeout=None):
+    def recv_raw(self, conn, buffer=None, timeout=None):
         buffer = buffer or self.buffer
-        return zono.socket.recv_raw(conn,buffer,self.format,timeout)
+        return zono.socket.recv_raw(conn, buffer, self.format, timeout)
 
     def is_event_socket(self, addr):
         s = self.get_session(addr)
@@ -590,7 +568,3 @@ class SecureServer:
     def run(self):
         self.init_socket()
         self.accept_connections()
-
-
-
-

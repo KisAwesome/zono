@@ -1,5 +1,5 @@
 from .exceptions import RequestError, MiddlewareError
-from zono.events import EventGroup,EventGroupReturn
+from zono.events import EventGroup, EventGroupReturn
 from zono.events import Event
 from zono.store import Store
 import traceback
@@ -27,7 +27,6 @@ def middleware(func):
     return Middleware(func)
 
 
-
 def event(event_name=None):
     def wrapper(func):
         name = event_name
@@ -46,14 +45,13 @@ def send_wrapper(ctx, app):
     def wrapped(pkt):
         app.send(pkt, ctx.conn, ctx.addr)
         ctx.responded = True
-        ctx._dict['responded'] = True
+        ctx._dict["responded"] = True
 
     return wrapped
 
 
 class Context:
     def __init__(self, app, **kwargs):
-
         self.app = app
         for i in kwargs:
             setattr(self, i, kwargs[i])
@@ -64,14 +62,15 @@ class Context:
             self.send = send_wrapper(self, app)
             self.recv = lambda: self.app.recv(self.conn, self.addr)
             self.close_socket = lambda: self.app.close_socket(self.conn, self.addr)
-            self._dict |= dict(responded=False,send=self.send,recv=self.recv,close_socket=self.close_socket)
-
+            self._dict |= dict(
+                responded=False,
+                send=self.send,
+                recv=self.recv,
+                close_socket=self.close_socket,
+            )
 
     def __repr__(self) -> str:
         return pprint.pformat(self._dict)
-
-
-
 
 
 class Request(Event):
@@ -114,4 +113,3 @@ class Middleware(Event):
                 sys.exit()
             info = sys.exc_info()
             return MiddlewareError(ctx, e, info)
-

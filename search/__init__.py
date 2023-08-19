@@ -4,5 +4,7 @@ class search:
 
     def search(self, term):
         for i in self.val:
+            i = str(i)
+            term = str(term)
             if term.lower().strip() in i.lower().strip():
                 return True

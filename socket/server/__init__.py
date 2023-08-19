@@ -1,4 +1,4 @@
-from .server import SecureServer
+# from .server import SecureServer
 from .server_cls import Server
 from .types import (
     Event,
@@ -7,6 +7,6 @@ from .types import (
     EventGroupReturn,
     event,
     request,
-    EventGroup
+    EventGroup,
 )
-from .exceptions import ReceiveError,SendError
+from .exceptions import ReceiveError, SendError

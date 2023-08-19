@@ -26,7 +26,7 @@ class DDOSProtection:
         max_connections=4,
         block_time=1800,
         max_failed_connect_inits=6,
-        connection_sent_weight=10
+        connection_sent_weight=10,
     ):
         cls = super().__new__(cls)
         cls.max_packets_per_minute = max_packets_per_minute
@@ -35,7 +35,7 @@ class DDOSProtection:
         cls.max_failed_connect_inits = max_failed_connect_inits
         cls.connection_sent_weight = connection_sent_weight
 
-        return  dict(
+        return dict(
             events=dict(
                 connect_check=cls.connect_check,
                 on_start=cls.on_start,
@@ -114,7 +114,6 @@ class DDOSProtection:
     def on_disconnect(self, ctx):
         self.pull_session(ctx.addr, "addresses", ctx.addr)
 
-
     def before_packet(self, ctx):
         if self.get_session_value(ctx.addr, "blocked"):
             return False
@@ -124,8 +123,6 @@ class DDOSProtection:
             return False
 
         return True
-    
-
 
     def create_session(self, ctx):
         return dict(
@@ -139,7 +136,7 @@ class DDOSProtection:
 
     def on_connect(self, ctx):
         print(ctx)
-        self.push_session(ctx.addr,'addresses',ctx.addr)
+        self.push_session(ctx.addr, "addresses", ctx.addr)
 
     def reset_sent(self):
         curr_time = time.time()
@@ -164,5 +161,3 @@ class DDOSProtection:
         ):
             self.update_session(ctx.addr, "failed_connections", 0)
             self.block(ctx)
-
-
