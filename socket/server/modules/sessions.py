@@ -19,7 +19,14 @@ class PersistentSessions(ServerModule):
         self.check_session_store()
 
     def sanitize_session(self, session):
-        for i in ("conn", "key", "event_socket_addr", "event_socket", "_session",'parent_addr'):
+        for i in (
+            "conn",
+            "key",
+            "event_socket_addr",
+            "event_socket",
+            "_session",
+            "parent_addr",
+        ):
             session.pop(i, None)
         return session
 
@@ -48,7 +55,7 @@ class PersistentSessions(ServerModule):
             return self.create_session(ctx)
 
         self.server.sessions[ctx.addr] |= s
-        self.server.sessions[ctx.addr]['_session'] = token
+        self.server.sessions[ctx.addr]["_session"] = token
         return dict(_session=token)
 
     @event()
@@ -60,24 +67,21 @@ class PersistentSessions(ServerModule):
             return
         session = self.sanitize_session(ctx.session)
         self.run_event("save_session", token, session)
-        
-    def get_connection_info(self,session):
+
+    def get_connection_info(self, session):
         info = {}
-        for s in ("conn", "key", "event_socket_addr", "event_socket",'parent_addr'):
-            i =session.get(s,None)
+        for s in ("conn", "key", "event_socket_addr", "event_socket", "parent_addr"):
+            i = session.get(s, None)
             if i:
-                info[s] =i
+                info[s] = i
         return info
 
     @event()
-    def load_session(self,addr,session_id):
+    def load_session(self, addr, session_id):
         session = self.get_connection_info(self.server.get_session(addr))
         s = self.run_event("get_session", session_id)
         if s is None:
             raise ValueError("Session not found")
-        
-        self.server.sessions[addr] = session|s
-        self.server.sessions[addr]['_session'] = session_id
-        
-        
-        
+
+        self.server.sessions[addr] = session | s
+        self.server.sessions[addr]["_session"] = session_id

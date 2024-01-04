@@ -49,9 +49,9 @@ class Event:
                 sys.exit()
             info = sys.exc_info()
             if self.error_handler is not None:
-                self.error_handler(e,info,self.name)
+                self.error_handler(e, info, self.name)
                 return
-            return EventError(e,info,self.name)
+            return EventError(e, info, self.name)
 
     def error(self, cb):
         if not callable(cb):
@@ -62,7 +62,6 @@ class Event:
 
 
 class EventGroup(Event):
-
     def __init__(self, name):
         self.events = []
         self.name = name

@@ -5,7 +5,7 @@ class ClientModule:
     def __new__(cls, *args, **kwargs):
         cls = super().__new__(cls)
 
-        module = dict(events=dict(),cls=cls)
+        module = dict(events=dict(), cls=cls)
 
         for i in dir(cls):
             v = getattr(cls, i)

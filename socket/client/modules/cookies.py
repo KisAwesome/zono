@@ -7,16 +7,19 @@ import os
 
 def get_file(file):
     return os.path.join(os.path.dirname(__file__), file)
+
+
 def form_cookies(cookies):
     if isinstance(cookies, dict):
         return cookies
     return {}
 
+
 def check_cookie_file():
     file = get_file("cookies.yaml")
     if not os.path.exists(file):
-        with open(file, 'w') as f:
-            f.write('{}')
+        with open(file, "w") as f:
+            f.write("{}")
 
 
 class Cookies(ClientModule):
@@ -53,18 +56,15 @@ class Cookies(ClientModule):
         client_cookies = self.client.final_connect_info.get("cookies", None)
         if (name and client_cookies) is None:
             return
-        self.save(name,client_cookies)
+        self.save(name, client_cookies)
 
-
-    
-    
-    def save(self,name=None,client_cookies=None):
+    def save(self, name=None, client_cookies=None):
         check_cookie_file()
         name = name or self.client.server_info.get("name", None)
         client_cookies = client_cookies or self.client.cookies
         if (name and client_cookies) is None:
             raise ValueError("Name and cookies need to be specified")
-        
+
         with open(get_file("cookies.yaml"), "r") as file:
             cookies = form_cookies(yaml.safe_load(file))
         cookies[name] = client_cookies
@@ -72,5 +72,3 @@ class Cookies(ClientModule):
         self.client.cookies = client_cookies
         with open(get_file("cookies.yaml"), "w") as file:
             yaml.safe_dump(cookies, file)
-    
-        

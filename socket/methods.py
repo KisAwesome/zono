@@ -26,7 +26,7 @@ def _recv(conn, buffer):
     except OSError as err:
         if err.errno == errno.EBADF:
             raise ReceiveError(4) from wrap_error(err)
-        
+
         raise err
 
 

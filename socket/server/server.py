@@ -329,7 +329,9 @@ class SecureServer:
                 **(
                     self.wrap_event(
                         "server_info",
-                        Context(self, addr=addr, conn=conn, session=self.get_session(addr)),
+                        Context(
+                            self, addr=addr, conn=conn, session=self.get_session(addr)
+                        ),
                     )
                     or {}
                 ),
@@ -345,7 +347,11 @@ class SecureServer:
             self.run_event(
                 "client_info",
                 Context(
-                    self, addr=addr, conn=conn, client_info=client_info, session=self.get_session(addr)
+                    self,
+                    addr=addr,
+                    conn=conn,
+                    client_info=client_info,
+                    session=self.get_session(addr),
                 ),
             ),
             default=True,
@@ -353,7 +359,11 @@ class SecureServer:
             self.run_event(
                 "on_connection_refusal",
                 Context(
-                    self, conn=conn, addr=addr, client_info=client_info, session=self.get_session(addr)
+                    self,
+                    conn=conn,
+                    addr=addr,
+                    client_info=client_info,
+                    session=self.get_session(addr),
                 ),
             )
             return self.close_socket(conn, addr)
@@ -379,7 +389,7 @@ class SecureServer:
             ),
             conn,
             addr,
-        )   
+        )
         self.run_event(
             "on_connect",
             Context(self, conn=conn, addr=addr, session=self.get_session(addr)),
@@ -457,7 +467,7 @@ class SecureServer:
     def get_session_key(self, addr):
         s = self.sessions.get(addr, None)
         if s:
-            return s['key']
+            return s["key"]
 
     def get_session(self, addr):
         return self.sessions.get(addr, None)

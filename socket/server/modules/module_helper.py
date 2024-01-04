@@ -13,7 +13,7 @@ class ServerModule:
     def __new__(cls, *args, **kwargs):
         cls = super().__new__(cls)
 
-        module = dict(paths=dict(), events=dict(), middleware=[],cls=cls)
+        module = dict(paths=dict(), events=dict(), middleware=[], cls=cls)
 
         for i in dir(cls):
             v = getattr(cls, i)

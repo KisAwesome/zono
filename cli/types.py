@@ -4,6 +4,7 @@ import traceback
 from zono.store import Store
 from zono.events import Event, attach, EventGroup
 
+
 class Arguments(list):
     def inlist(self, index):
         if isinstance(index, slice):
@@ -27,7 +28,6 @@ class Arguments(list):
         if not self.inlist(index):
             return
         super().__delitem__(index)
-
 
 
 def command(name=None, description="", help=""):
@@ -110,7 +110,14 @@ class CommandEvent:
 
 class Command:
     def __init__(
-        self, name, callback, description="", threadable=True, hidden=False, help_="",aliases=[]
+        self,
+        name,
+        callback,
+        description="",
+        threadable=True,
+        hidden=False,
+        help_="",
+        aliases=[],
     ):
         self.description = description
         self.name = name
@@ -188,7 +195,7 @@ class Module:
                 raise ValueError("Command function must be callable")
 
             cmd_name = name or func.__name__
-            cmd = Command(cmd_name, func, description, help_=help,aliases=aliases)
+            cmd = Command(cmd_name, func, description, help_=help, aliases=aliases)
             self.add_command_(cmd)
             return cmd
 

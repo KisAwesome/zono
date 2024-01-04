@@ -1,33 +1,36 @@
 import os
-from .types import  Context, command
+from .types import Context, command
 from .module import Module
 
 
 errors = {
-    ValueError: 'Expected a numerical value',
-    IndexError:'Missing expected arguments',
+    ValueError: "Expected a numerical value",
+    IndexError: "Missing expected arguments",
 }
+
 
 class BaseCommands(Module):
     def __init__(self):
         pass
-    
-    @command('^',
-             'Runs a command a specified number of times',    'Runs a command a specified number of times')
-    def run_multiple(self,ctx):
+
+    @command(
+        "^",
+        "Runs a command a specified number of times",
+        "Runs a command a specified number of times",
+    )
+    def run_multiple(self, ctx):
         t = int(ctx.args.pop(0))
-        cmd = ' '.join(ctx.args)
+        cmd = " ".join(ctx.args)
         for i in range(t):
-            ctx.app.run_event('on_input',cmd)
-    
+            ctx.app.run_event("on_input", cmd)
+
     @run_multiple.error
-    def handler(self,error):
-        for err,msg in errors.items():
-            if isinstance(error.error,err):
+    def handler(self, error):
+        for err, msg in errors.items():
+            if isinstance(error.error, err):
                 return print(msg)
-            
+
         raise error.error
-        
 
     @command(
         "help",
@@ -36,7 +39,7 @@ class BaseCommands(Module):
     )
     def help(self, ctx):
         if all(ctx.args) and ctx.args:
-            cmd = ctx.app.get_command(ctx.args[0],alias=True)
+            cmd = ctx.app.get_command(ctx.args[0], alias=True)
             if cmd:
                 if cmd.help:
                     print(f"help for {cmd.name}:")
@@ -54,14 +57,16 @@ class BaseCommands(Module):
 
         ctx.app.internal_menu()
 
-    @command("..", "Goes back once in the menu", "Goes back once in the indentation tree")
+    @command(
+        "..", "Goes back once in the menu", "Goes back once in the indentation tree"
+    )
     def back(self, ctx):
         if ctx.app.lock_cli:
             return
         if ctx.app.indentation == []:
             return
         ctx.app.indentation.pop()
-        ctx.app.run_event('indentation_changed',Context([],ctx.app))
+        ctx.app.run_event("indentation_changed", Context([], ctx.app))
 
     @command("clear", "Clears the console", "Clears the console")
     def clear(self, ctx):
@@ -69,7 +74,6 @@ class BaseCommands(Module):
             return os.system("cls")
         # os.system("clear")
         print("\033c", end="")
-
 
     @command("exit", "Exits the application", "Exits the application")
     def exit(self, ctx):
@@ -86,6 +90,7 @@ class BaseCommands(Module):
     @command("thread", "Runs a command in thread", "Runs the given command in a thread")
     def run_in_thread(self, ctx):
         import threading
+
         cmd = ctx.app.get_command(ctx.args[0])
         if isinstance(cmd, Module):
             return print("Cannot run a module")
@@ -123,7 +128,6 @@ class BaseCommands(Module):
                 cmds.extend(ctx.app.indentation[-1].commands[:])
 
             return [cmd.name for cmd in cmds]
-        
 
         l = ctx.lbuffer[2:]
 
@@ -136,16 +140,11 @@ class BaseCommands(Module):
         l1 = l[:]
         l1.pop(0)
 
-
         try:
-            return cmd.completer_func(
-                Context(l1, ctx.app, completer=True, lbuffer=l)
-            )
+            return cmd.completer_func(Context(l1, ctx.app, completer=True, lbuffer=l))
         except Exception as e:
             print(e)
             print(f"This error occurred in the completer function for {cmd.name}")
-
-
 
     @run_in_thread.completer
     def thread_completer(self, ctx):
@@ -155,9 +154,8 @@ class BaseCommands(Module):
                 cmds.extend(ctx.app.indentation[-1].commands[:])
 
             g = [cmd.name for cmd in cmds]
-            g.remove('thread')
+            g.remove("thread")
             return g
-        
 
         l = ctx.lbuffer[1:]
         cmd = ctx.app.get_command(l[0])
@@ -169,12 +167,11 @@ class BaseCommands(Module):
         l1.pop(0)
 
         try:
-            return cmd.completer_func(
-                Context(l1, ctx.app, completer=True, lbuffer=l)
-            )
+            return cmd.completer_func(Context(l1, ctx.app, completer=True, lbuffer=l))
         except Exception as e:
             print(e)
             print(f"This error occurred in the completer function for {cmd.name}")
+
     @shell_command.completer
     def shell_completer(self, ctx):
         if not ctx.app.windows:
