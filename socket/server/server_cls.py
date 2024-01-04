@@ -4,8 +4,8 @@ from zono.events import Event
 
 
 class Server:
-    def __new__(cls, ip="", port=None, event_socket=False, *args, **kwargs):
-        server = SecureServer(ip, port, event_socket)
+    def __new__(cls, ip="", port=None, *args, **kwargs):
+        server = SecureServer(ip, port)
         if cls == Server:
             return server
         cls = super().__new__(cls)
@@ -39,5 +39,3 @@ class Server:
         cls.__init__(*args, **kwargs)
 
         return server
-    def __init__(ip='',port=None,event_socket=False):
-        raise NotImplementedError()

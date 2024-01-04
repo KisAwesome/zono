@@ -5,6 +5,7 @@ from .types import (
     Request,
     Middleware,
     EventGroupReturn,
+    Sessions,
 )
 from .exceptions import *
 import cryptography.hazmat.primitives.asymmetric.padding
@@ -25,42 +26,51 @@ import sys
 
 Crypt = zono.zonocrypt.zonocrypt()
 
-# objcrypt = zono.zonocrypt.objcrypt(hash_algorithm=zono.zonocrypt.objcrypt.SHA512)
-logger = zono.colorlogger.create_logger('server',0)
+
+logger = zono.colorlogger.create_logger("zono.server", level=1)
+
 
 class SecureServer:
-    def __init__(self, ip="", port=None, event_socket=False):
+    def __init__(self, ip="", port=None):
         self.port = port
         self.hostname = socket.gethostname()
         self.ip = ip or self.get_server_ip()
-        self.event_socket = event_socket
-        zono.events.attach(self, True)
         self.init()
 
     def init(self):
-        self.store = Store()
-        self.kill_on_error = True
-        self.paths = {}
-        self.next_mw = False
-        self.sessions = {}
-        self.buffer = 512
-        self.init_buffer = 512
-        self.timeout_duration = 30
-        self.format = "utf-8"
-        self.middlewares = []
-        self.intervals = []
-        self._shutting_down = False
+        self.sessions = Sessions(self.session_update)
         self._warn_missing_response = True
+        zono.events.attach(self, True)
+        self._shutting_down = False
+        self.timeout_duration = 10
+        self.kill_on_error = True
+        self.init_buffer = 512
+        self.middlewares = []
+        self.format = "utf-8"
+        self.store = Store()
+        self.next_mw = False
+        self.intervals = []
+        self.modules = []
+        self.buffer = 512
+        self.paths = {}
         self.load_events()
-        self.load_paths()
 
     def wrap_event(self, event, *args, **kwargs):
         ret = self.run_event(event, *args, **kwargs)
-
+        if isinstance(ret, dict) or ret is None:
+            return ret
         n = dict()
         for i in ret:
+            if i is None:
+                print(f"ERROR event: {event} a sub event in group returned None")
+                continue
             n |= i
         return n
+
+    def wrap_bool_event(self, ret, default=None):
+        if isinstance(ret, EventGroupReturn):
+            return all(ret)
+        return ret or default
 
     def server_info(self):
         return dict(
@@ -77,7 +87,7 @@ class SecureServer:
     def next(self):
         self.next_mw = True
 
-    def connection_status(self, conn): 
+    def connection_status(self, conn):
         # return conn.getsockopt(socket.SOL_SOCKET, socket.SO_CONNECTED)
         if "closed" in str(conn):
             return False
@@ -133,19 +143,14 @@ class SecureServer:
         except OSError:
             pass
         conn.close()
-        self.run_event("on_disconnect", Context(self, conn=conn, addr=addr))
+        self.run_event(
+            "on_disconnect", Context(self, conn=conn, addr=addr, session=session)
+        )
 
     def close_socket(self, conn, addr):
         session = self.get_session(addr)
         if session is None:
             return
-        # if session == [] and not self.connection_status(conn):
-        #     return
-
-        if "event_socket" in session:
-            self._close_socket(
-                self.sessions[addr].event_socket, self.sessions[addr].event_socket_addr
-            )
         self._close_socket(conn, addr)
 
     def accept_connections(self):
@@ -159,48 +164,46 @@ class SecureServer:
                 if self._shutting_down:
                     return
                 raise
+            except KeyboardInterrupt:
+                self.shutdown()
             else:
                 threading.Thread(
                     target=self.handle_client,
                     args=(conn, addr),
                 ).start()
 
-        # with concurrent.futures.ThreadPoolExecutor() as executor:
-        #     while not self._shutting_down:
-        #         try:
-        #             conn, addr = self.socket.accept()
-        #             executor.submit(self.handle_client, conn, addr)
-
-        #         except (ConnectionAbortedError, socket.error) as e:
-        #             print(e)
-        #             if self._shutting_down:
-        #                 return
-
     def recv_loop(self, conn, addr):
         while True:
             try:
                 _session = self.get_session(addr)
 
-                if not self.run_event(
-                    "before_packet",
-                    Context(self, conn=conn, addr=addr, session=_session),
+                if not self.wrap_bool_event(
+                    self.run_event(
+                        "before_packet",
+                        Context(self, conn=conn, addr=addr, session=_session),
+                    ),
+                    default=True,
                 ):
                     return self.close_socket(conn, addr)
 
-                pkt = self.recv(conn, addr, timeout=self.timeout_duration)
-
-                if not self.run_event(
-                    "after_packet",
-                    Context(self, conn=conn, addr=addr, session=_session, pkt=pkt),
+                raw_pkt = self.recv(conn, addr, timeout=self.timeout_duration)
+                pkt = self.wrap_pkt(raw_pkt)
+                if not self.wrap_bool_event(
+                    self.run_event(
+                        "after_packet",
+                        Context(self, conn=conn, addr=addr, session=_session, pkt=pkt),
+                    ),
+                    default=True,
                 ):
                     return self.close_socket(conn, addr)
                 ctx = Context(
                     self,
-                    pkt=Store(pkt),
+                    pkt=pkt,
                     conn=conn,
                     addr=addr,
                     session=_session,
                     next=self.next,
+                    raw_pkt=raw_pkt,
                 )
                 if pkt.get("_keepalive", None) == True:
                     continue
@@ -241,13 +244,20 @@ class SecureServer:
 
                     self.run_event("on_client_error", ctx)
                     self.send(
-                        dict(status=404, msg="Path not found", error=True),
+                        dict(
+                            status=404, msg="Path not found", error=True, success=False
+                        ),
                         conn,
                         addr,
                     )
 
             except ReceiveError as e:
                 return self.close_socket(conn, addr)
+
+    def wrap_pkt(self, pkt):
+        if isinstance(pkt, dict):
+            return Store(pkt)
+        return Store(dict(content=pkt, raw=True))
 
     def init_connection(self, conn):
         echo_pkt = self.recv_raw(conn, self.init_buffer, 2)
@@ -284,34 +294,19 @@ class SecureServer:
         key_deriv = num1 + num2 + num3
         return Crypt.hashing_function(key_deriv)
 
-    def create_session(self, conn, addr):
+    def create_connection_session(self, conn, addr):
         self.sessions[addr] = Store(conn=conn)
-        retrieved_session = self.run_event(
-            "load_session", Context(self, conn=conn, addr=addr)
-        )
-        if isinstance(retrieved_session, dict):
-            self.sessions[addr] |= retrieved_session
-            return
-        s = self.run_event("create_session", Context(self, conn=conn, addr=addr))
-        if isinstance(s, EventGroupReturn) or isinstance(s, list):
-            for i in s:
-                self.sessions[addr] |= i
-
-        elif isinstance(s, dict):
-            self.sessions[addr] |= s
-
-        self.run_event(
-            "created_session",
-            Context(self, conn=conn, addr=addr, session=self.sessions[addr]),
-        )
 
     def handle_client(self, conn, addr):
-        if not self.run_event("connect_check", Context(self, conn=conn, addr=addr)):
+        if not self.wrap_bool_event(
+            self.run_event("connect_check", Context(self, conn=conn, addr=addr)),
+            default=True,
+        ):
             conn.close()
             self.run_event("on_connection_refusal", Context(self, conn=conn, addr=addr))
             sys.exit()
 
-        self.create_session(conn, addr)
+        self.create_connection_session(conn, addr)
         try:
             key = self.init_connection(conn)
             self.get_session(addr)["key"] = key
@@ -324,29 +319,67 @@ class SecureServer:
                 ),
             )
             return self.close_socket(conn, addr)
-        client_info = self.recv(conn, addr, self.init_buffer, 2)
-        client_info["addr"] = addr
-        client_info["conn"] = conn
-        if not self.run_event("client_info", client_info):
-            self.run_event(
-                "on_connection_refusal",
-                Context(self, conn=conn, addr=addr, client_info=client_info),
-            )
-            return self.close_socket(conn, addr)
         self.send(
             dict(
                 status=200,
                 info="Initiated secure connection",
                 buffer=self.buffer,
-                event_socket=self.event_socket,
                 success=True,
                 timeout=self.timeout_duration,
-                **self.wrap_event("server_info"),
+                **(
+                    self.wrap_event(
+                        "server_info",
+                        Context(self, addr=addr, conn=conn, session=self.get_session(addr)),
+                    )
+                    or {}
+                ),
             ),
             conn,
             addr,
             self.init_buffer,
         )
+
+        client_info = self.recv(conn, addr, self.init_buffer, 2)
+
+        if not self.wrap_bool_event(
+            self.run_event(
+                "client_info",
+                Context(
+                    self, addr=addr, conn=conn, client_info=client_info, session=self.get_session(addr)
+                ),
+            ),
+            default=True,
+        ):
+            self.run_event(
+                "on_connection_refusal",
+                Context(
+                    self, conn=conn, addr=addr, client_info=client_info, session=self.get_session(addr)
+                ),
+            )
+            return self.close_socket(conn, addr)
+
+        self.send(
+            dict(
+                status=200,
+                info="Connection established",
+                success=True,
+                **(
+                    self.wrap_event(
+                        "connection_established_info",
+                        Context(
+                            self,
+                            addr=addr,
+                            conn=conn,
+                            client_info=client_info,
+                            session=self.get_session(addr),
+                        ),
+                    )
+                    or {}
+                ),
+            ),
+            conn,
+            addr,
+        )   
         self.run_event(
             "on_connect",
             Context(self, conn=conn, addr=addr, session=self.get_session(addr)),
@@ -412,71 +445,19 @@ class SecureServer:
         if self.kill_on_error:
             self.shutdown()
 
+    def session_update(self, key, value, action):
+        self.run_event(
+            "session_update", Context(self, key=key, value=value, action=action)
+        )
+
     def load_events(self):
         self.register_event("on_request_error", self.on_request_error)
-        self.register_event("connect_check", lambda x: True)
-        self.register_event("create_session", lambda c: dict())
         self.register_event("on_middleware_error", self.on_middleware_error)
-        self.register_event("before_packet", lambda x: True)
-        self.register_event("after_packet", lambda x: True)
-        self.register_event("server_info", lambda: {})
-        self.register_event("client_info", lambda x: True)
-
-    def send_event(self, addr, event):
-        if not self.event_socket:
-            raise Exception("This server does not have event sockets enabled")
-
-        session = self.get_session(addr)
-        if not session:
-            raise ValueError("Session not found")
-
-        ev_sock = session.get("event_socket", None)
-        ev_addr = session.get("event_socket_addr", None)
-        if ev_sock is None or ev_addr is None:
-            raise ClientError(f"{addr} has no event socket registered")
-
-        self.send(event, ev_sock, ev_addr)
-
-    def load_loggers(self):
-        self.register_event(
-            "on_connect",
-            lambda ctx: logger.info(f"{self.form_addr(ctx.addr)} connected"),
-        )
-        self.register_event(
-            "on_disconnect",
-            lambda ctx: logger.log(
-                f"{self.form_addr(ctx.addr)} disconnected"
-            ),
-        )
-        self.register_event(
-            "on_start",
-            lambda ctx: logger.major_log(
-                f"Server listening @{ctx.ip}:{ctx.port}"
-            ),
-        )
-        self.register_event(
-            "on_client_error",
-            lambda ctx: logger.error(
-                f"Client error {self.form_addr(ctx.addr)}: {ctx.msg} {ctx.pkt}"
-            ),
-        )
-        self.register_event(
-            "on_connection_refusal",
-            lambda ctx: logger.error(
-                f"{self.form_addr(ctx.addr)} connection refused"
-            ),
-        )
-        self.register_event(
-            "on_connect_fail",
-            lambda ctx: logger.error(
-                f"{self.form_addr(ctx.addr)} connection initiation failed"
-            ),
-        )
 
     def get_session_key(self, addr):
         s = self.sessions.get(addr, None)
         if s:
-            return s.key
+            return s['key']
 
     def get_session(self, addr):
         return self.sessions.get(addr, None)
@@ -509,6 +490,11 @@ class SecureServer:
         if "middleware" in module:
             for middleware in module["middleware"]:
                 self.register_middleware(middleware)
+        if "modules" in module:
+            for i in module["modules"]:
+                self.load_modules(i)
+
+        self.modules.append(module)
 
     def send_raw(self, pkt, conn, buffer=None):
         return zono.socket.send_raw(conn, pkt, self.format, buffer)
@@ -517,53 +503,8 @@ class SecureServer:
         buffer = buffer or self.buffer
         return zono.socket.recv_raw(conn, buffer, self.format, timeout)
 
-    def is_event_socket(self, addr):
-        s = self.get_session(addr)
-        if s is None:
-            return False
-        if s.get("parent_addr", None) is not None:
-            return True
+    def is_event_socket(self, addr, *_):
         return False
-
-    def _event_socket(self, ctx):
-        addr = tuple(ctx.pkt.get("addr", None))
-        key = ctx.pkt.get("key", None)
-
-        if not (addr and key):
-            return ctx.send(dict(success=False, error=True, info="Incomplete packet"))
-
-        user_session = self.get_session(addr)
-        if user_session is None:
-            return ctx.send(
-                dict(success=False, error=True, info="session does not exist")
-            )
-
-        if not user_session["key"] == key:
-            return ctx.send(
-                success=False, error=True, info="Session key does not match"
-            )
-
-        ctx.session["parent_addr"] = addr
-        user_session["event_socket"] = ctx.conn
-        user_session["event_socket_addr"] = ctx.addr
-
-        ctx.send(
-            dict(success=True, error=False, info="Registered event socket successfully")
-        )
-        self.run_event(
-            "event_socket_registered",
-            Context(
-                self,
-                client_session=user_session,
-                addr=ctx.addr,
-                conn=ctx.conn,
-                parent_addr=addr,
-            ),
-        )
-
-    def load_paths(self):
-        if self.event_socket:
-            self.register_path("_event_socket", self._event_socket)
 
     def run(self):
         self.init_socket()

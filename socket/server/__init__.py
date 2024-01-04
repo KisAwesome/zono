@@ -8,5 +8,6 @@ from .types import (
     event,
     request,
     EventGroup,
+    Context,
 )
 from .exceptions import ReceiveError, SendError

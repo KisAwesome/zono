@@ -68,6 +68,7 @@ class Context:
                 recv=self.recv,
                 close_socket=self.close_socket,
             )
+        self.app.run_event("create_context", self)
 
     def __repr__(self) -> str:
         return pprint.pformat(self._dict)
@@ -113,3 +114,32 @@ class Middleware(Event):
                 sys.exit()
             info = sys.exc_info()
             return MiddlewareError(ctx, e, info)
+
+
+class Sessions(dict):
+    def __init__(self, callback=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.callback = callback
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        self._run_callback(key, value, "set")
+
+    def __delitem__(self, key):
+        value = self[key]
+        super().__delitem__(key)
+        self._run_callback(key, value, "delete")
+
+    def pop(self, key, default=None):
+        value = super().pop(key, default)
+        self._run_callback(key, value, "pop")
+        return value
+
+    def update(self, *args, **kwargs):
+        updated_dict = dict(self)
+        super().update(*args, **kwargs)
+        self._run_callback(None, updated_dict, "update")
+
+    def _run_callback(self, key, value, action):
+        if self.callback is not None:
+            self.callback(key, value, action)

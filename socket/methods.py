@@ -1,8 +1,9 @@
 from .exceptions import *
 import zono.zonocrypt
-import zono.socket
 import socket
 import errno
+
+show_full_error = False
 
 
 def wrap_error(e):
@@ -25,6 +26,7 @@ def _recv(conn, buffer):
     except OSError as err:
         if err.errno == errno.EBADF:
             raise ReceiveError(4) from wrap_error(err)
+        
         raise err
 
 
@@ -43,7 +45,11 @@ def _send(conn, data):
 
 
 def recv(conn, buffer, timeout, session_key, _format):
-    conn.settimeout(timeout)
+    try:
+        conn.settimeout(timeout)
+    except OSError as err:
+        if err.errno == errno.EBADF:
+            raise ReceiveError(6) from wrap_error(err)
     try:
         msg_len = int(_recv(conn, buffer).decode(_format))
     except ValueError as e:

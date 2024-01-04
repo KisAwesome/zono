@@ -1,6 +1,5 @@
 from .exceptions import SendError, ReceiveError, ConnectionFailed
-from .methods import send, send_raw, recv, recv_raw
-from . import server
-from . import client
+from .methods import send, send_raw, recv, recv_raw, show_full_error
 
-show_full_error = False
+# from . import server
+# from . import client

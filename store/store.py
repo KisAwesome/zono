@@ -1,64 +1,54 @@
-from typing import Any
-
-
 class Store(dict):
-    dictattrs = [
-        "__class__",
-        "__class_getitem__",
-        "__contains__",
-        "__delattr__",
-        "__delitem__",
-        "__dir__",
-        "__doc__",
-        "__eq__",
-        "__format__",
-        "__ge__",
-        "__getattribute__",
-        "__getitem__",
-        "__gt__",
-        "__hash__",
-        "__init__",
-        "__init_subclass__",
-        "__ior__",
-        "__iter__",
-        "__le__",
-        "__len__",
-        "__lt__",
-        "__ne__",
-        "__new__",
-        "__or__",
-        "__reduce__",
-        "__reduce_ex__",
-        "__repr__",
-        "__reversed__",
-        "__ror__",
-        "__setattr__",
-        "__setitem__",
-        "__sizeof__",
-        "__str__",
-        "__subclasshook__",
-        "clear",
-        "copy",
-        "fromkeys",
-        "get",
-        "items",
-        "keys",
-        "pop",
-        "popitem",
-        "setdefault",
-        "update",
-        "values",
-    ]
+    def __getattr__(self, name):
+        if name in self:
+            return self[name]
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-    def __setattr__(self, __name: Any, __value: Any) -> None:
-        if __name in Store.dictattrs:
-            return super().__setattr__(__name, __value)
-        return super().__setitem__(__name, __value)
+    def __setattr__(self, name, value):
+        self[name] = value
 
-    def __getattribute__(self, __name: Any) -> Any:
-        if __name in Store.dictattrs:
-            return super().__getattribute__(__name)
-        return super().__getitem__(__name)
+    def __delattr__(self, name):
+        if name in self:
+            del self[name]
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-    def __delattr__(self, __name: Any) -> Any:
-        return super().pop(__name, None)
+    def __ior__(self, other):
+        super().__ior__(other)
+        return self
+
+    def __iand__(self, other):
+        super().__iand__(other)
+        return self
+
+    def __iadd__(self, other):
+        super().__iadd__(other)
+        return self
+
+    def __isub__(self, other):
+        super().__isub__(other)
+        return self
+
+    def __imul__(self, other):
+        super().__imul__(other)
+        return self
+
+    def __itruediv__(self, other):
+        super().__itruediv__(other)
+        return self
+
+    def __ifloordiv__(self, other):
+        super().__ifloordiv__(other)
+        return self
+
+    def __imod__(self, other):
+        super().__imod__(other)
+        return self
+
+    def __ipow__(self, other, modulo=None):
+        super().__ipow__(other, modulo)
+        return self
+    
+    def __or__(self, other):
+        return Store(super().__or__(other))

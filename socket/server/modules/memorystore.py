@@ -1,54 +1,33 @@
 import zono.zonocrypt
 import zono.socket.server
+from .module_helper import event, ServerModule
+import time
 
 
-class MemorySessionStore:
-    def __new__(cls):
-        cls = super().__new__(cls)
-        cls.crypt = zono.zonocrypt.zonocrypt()
-        return dict(
-            setup=cls.setup,
-            paths=dict(),
-            middleware=list(),
-            events=dict(
-                load_session=cls.load_session,
-                get_session=cls.get_session,
-                save_session=cls.save_session,
-                get_all_sessions=cls.get_all_sessions,
-                get_session_id=cls.get_session_id,
-                created_session=cls.created_session,
-            ),
-        )
+class MemorySessionStore(ServerModule):
+    def __init__(self):
+        self.crypt = zono.zonocrypt.zonocrypt()
+        self.sessions = {}
 
     def setup(self, ctx):
-        ctx.store.sessions = {}
-        ctx.app.custom_session_handler = True
         self.server = ctx.app
 
-    def load_session(self, ctx):
-        if ctx.addr[0] in ctx.store.sessions:
-            return ctx.store.sessions[ctx.addr[0]]
-
-    def created_session(self, ctx):
-        s = dict(session_id=self.crypt.create_safe_identifier(str(ctx.addr[0])))
-        session = ctx.session.copy()
-        session.pop("conn", None)
-        s |= session
-        ctx.store.sessions[ctx.addr[0]] = s
-
+    @event()
     def get_session(self, session):
-        return self.server.store.sessions.get(session, None)
+        return self.sessions.get(session, None)
 
+    @event()
     def save_session(self, session_key, session):
-        if session_key not in self.server.store.sessions:
+        if session_key not in self.sessions:
             return
-        self.server.store.sessions[session_key] = session
+        self.sessions[session_key] = session
 
+    @event()
     def get_all_sessions(self):
-        return self.server.store.sessions
+        return self.sessions
 
-    def get_session_id(self, session_id):
-        for addr, session in self.server.store.sessions.items():
-            if session["session_id"] == session_id:
-                session["address"] = addr
-                return session
+    @event()
+    def new_session(self, ctx, session):
+        token = self.crypt.create_safe_identifier(str(time.time()) + str(ctx.addr))
+        self.sessions[token] = session
+        return token
