@@ -1,5 +1,5 @@
-from .event_socket import SecureEventSocket
 from .module_helpers import ClientModule, event
+from .event_socket import SecureEventSocket
 import time
 import yaml
 import os

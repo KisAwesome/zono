@@ -68,6 +68,11 @@ class EventSocket(ServerModule):
             self.server.close_socket(
                 ctx.session.event_socket, ctx.session.event_socket_addr
             )
+            
+    @event()
+    def create_context(self,ctx):
+        if ctx._dict.get('addr',None) is not None:
+            ctx.send_event = lambda event: self.send_event(ctx.addr,event)
 
     def send_event(self, addr, event):
         session = self.server.get_session(addr)
