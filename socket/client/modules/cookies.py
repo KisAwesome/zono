@@ -1,6 +1,5 @@
-from .module_helpers import ClientModule, event
-import zono.socket.client.securesocket as securesocket
 from .event_socket import SecureEventSocket
+from .module_helpers import ClientModule, event
 import time
 import yaml
 import os
@@ -60,6 +59,7 @@ class Cookies(ClientModule):
     
     
     def save(self,name=None,client_cookies=None):
+        check_cookie_file()
         name = name or self.client.server_info.get("name", None)
         client_cookies = client_cookies or self.client.cookies
         if (name and client_cookies) is None:
