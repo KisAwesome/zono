@@ -78,6 +78,8 @@ class zonocrypt:
         f = Fernet(key)
         if not isinstance(data, str):
             data = self.encode(data)
+        else:
+            data = data.encode('utf-8')
 
         return f.encrypt(data)
 
@@ -90,6 +92,14 @@ class zonocrypt:
 
         return self.decode(decrypted)
 
+    def decrypt_raw(self, encrypted,key):
+        f = Fernet(key)
+        try:
+            decrypted = f.decrypt(encrypted)
+        except cryptography.fernet.InvalidToken:
+            raise IncorrectDecryptionKey("Incorrect Decryption key")
+
+        return decrypted
 
     def __gen_key__(self, ref):
         password_provided = ref
@@ -137,7 +147,10 @@ class zonocrypt:
         if len(dec_base64) == 32:
             return True
         return False
-
+    def encrypt_bytes(self, entity, key):
+        f = Fernet(key)
+        encrypted = f.encrypt(entity)
+        return encrypted
     def randint(self):
         byte = os.urandom(16)
         return int.from_bytes(byte, "big")

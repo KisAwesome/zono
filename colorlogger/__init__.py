@@ -1,2 +1,2 @@
-from .colorlogger import ColoredFormatter,create_logger,LOG_LEVEL_IMPORTANT_INFO,LOG_LEVEL_PRINT,MAIN_LOGGERS
+from .colorlogger import ColoredFormatter,create_logger,LOG_LEVEL_IMPORTANT_INFO,LOG_LEVEL_PRINT,MAIN_LOGGERS,add_file_handler
 from .colorlogger import log,info,major_log,error

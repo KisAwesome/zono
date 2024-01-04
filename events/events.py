@@ -21,7 +21,10 @@ class EventManager:
     
     def remove_event(self, event):
         return self.events.pop(event,None)
-    def isevent(self, event):
+    def isevent(self, event,event_group=False):
+        if event_group:
+            return isinstance(self.events.get('event',None),EventGroup) 
+        
         return event in self.events
 
     def wait(self, event, timeout=None):

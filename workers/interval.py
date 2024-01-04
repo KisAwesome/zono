@@ -7,9 +7,10 @@ _intervals_lock = threading.RLock()
 
 
 class Interval(object):
-    def __init__(self, tick, handler, *args, **kwargs):
+    def __init__(self, tick, handler,daemon=None, *args, **kwargs):
         self.tick = tick
         self.handler = lambda: handler(*args, **kwargs)
+        self.daemon =daemon 
         self._timer = None
         self.running = False
         self.interval_id = str(uuid.uuid4())
@@ -18,6 +19,7 @@ class Interval(object):
 
     def __next_tick(self):
         self._timer = threading.Timer(self.tick, self.__on_tick)
+        self._timer.daemon = self.daemon
         self._timer.start()
 
     def __on_tick(self):

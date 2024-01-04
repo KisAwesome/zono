@@ -104,9 +104,10 @@ def _validate(instance, schema, depth):
             )
 
         func = schema[1]
-        if func is None:
-                func = lambda x: (True, "")
-        results = [*func(instance)]
+        if not callable(func):
+            results = [True,'']
+        else:
+            results = [*func(instance)]
         if results[0] is False or results[0] is None:
             msg = f"Unable to validate"
             if len(results) > 1:

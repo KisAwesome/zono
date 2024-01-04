@@ -7,18 +7,16 @@ from .types import (
     Module,
     Event,
 )
-from .exceptions import CommandError #, ArgumentError
+from .exceptions import CommandError
 from .basecommands import BaseCommands
-import zono.events
-import os
-import readline
 import collections.abc
-import sys
+import zono.events
+import readline
 import traceback
+import sys
+import os
 import re
 
-def has_single_trailing_space(string):
-    return re.match(r".* $", string) is not None
 
 class Application:
     def __init__(self):
@@ -29,7 +27,7 @@ class Application:
         self.spacer = "::"
         self.lock_cli = False
         self.events_loaded = False
-        self._input_stop = False    
+        self._input_stop = False
         self.store = Store()
         self._invoking = None
         self.show_menu = True
@@ -45,14 +43,12 @@ class Application:
         self.show_menu = False
 
     def complete(self, text, state):
-        # raw_l = []   
-
         _buffer = readline.get_line_buffer()
-        buffer= _buffer.lstrip().strip().split(" ")
-        
-        if has_single_trailing_space(_buffer):
-            buffer.append('')
-            
+        buffer = _buffer.strip().split(" ")
+
+        if re.match(r".* $", _buffer) is not None:
+            buffer.append("")
+
         l = buffer[:]
 
         if len(l) == 1:
@@ -68,7 +64,7 @@ class Application:
             return r
 
         else:
-            cmd = self.get_command(l[0],alias=True)
+            cmd = self.get_command(l[0], alias=True)
             if cmd is None:
                 return
             if cmd.completer_func is None:
@@ -76,31 +72,39 @@ class Application:
 
             l1 = l[:]
             l1.pop(0)
-            
+
             if self.current_completion is None:
                 try:
-                    self.current_completion = self.current_completion  = cmd.completer_func(
+                    self.current_completion = (
+                        self.current_completion
+                    ) = cmd.completer_func(
                         Context(l1, self, completer=True, lbuffer=buffer)
                     )
                 except Exception as e:
                     print(e)
-                    print(f"This error occured in the completer function for {cmd.name}")
+                    print(
+                        f"This error occured in the completer function for {cmd.name}"
+                    )
 
-            if isinstance(self.current_completion , collections.abc.Iterable):
-                self.current_completion  = list(self.current_completion)
-                results = [x for x in self.current_completion  if x.startswith(text)] + [None]
+            if isinstance(self.current_completion, collections.abc.Iterable):
+                self.current_completion = list(self.current_completion)
+                results = [x for x in self.current_completion if x.startswith(text)] + [
+                    None
+                ]
                 r = results[state]
             elif isinstance(self.current_completion, MatchCompleter):
-                results = [x for x in self.current_completion.list if x.startswith(text)] + [None]
+                results = [
+                    x for x in self.current_completion.list if x.startswith(text)
+                ] + [None]
                 r = results[state]
-            elif isinstance(self.current_completion , NoMatchCompleter):
-                r  =  self.current_completion.list[state]
+            elif isinstance(self.current_completion, NoMatchCompleter):
+                r = self.current_completion.list[state]
 
             else:
                 raise ValueError(
                     "Completion must be list, MatchCompleter or NoMatchCompleter"
                 )
-            
+
             if r is None:
                 self.current_completion = None
             return r
@@ -123,7 +127,7 @@ class Application:
         print()
         os._exit(status)
 
-    def get_command(self, command,alias=False):
+    def get_command(self, command, alias=False):
         if not self.indentation:
             for i in self.base_commands:
                 if i.name == command or (command in i.aliases and alias):
@@ -153,25 +157,19 @@ class Application:
                 continue
             cmd = inp.split(" ")[0]
             if base.name == cmd or cmd in base.aliases:
-
                 self._invoking = base
-                g = (inp.replace(cmd, "", 1).strip()).split(' ')
-                if g == ['']:
-                    g= []
-                err = base(
-                    Context(
-                        g, self, command=base
-                    )
-                )
+                g = (inp.replace(cmd, "", 1).strip()).split(" ")
+                if g == [""]:
+                    g = []
+                err = base(Context(g, self, command=base))
 
                 self._invoking = None
 
-
-                if isinstance(err,CommandError):
+                if isinstance(err, CommandError):
                     if self.isevent("on_command_error"):
                         return self.run_event("on_command_error", err)
                     raise err.error
-                
+
                 return
 
         if self.indentation != []:
@@ -181,13 +179,13 @@ class Application:
             indentation = self.modules
         cmd = inp.split(" ")[0]
         for command in indentation:
-            if command.name == cmd or cmd in getattr(command,'aliases',[]):
+            if command.name == cmd or cmd in getattr(command, "aliases", []):
                 if isinstance(command, Command):
                     if command.disabled:
                         continue
                     self._invoking = command
-                    g = (inp.replace(cmd, "", 1).strip()).split(' ')
-                    if g == ['']:
+                    g = (inp.replace(cmd, "", 1).strip()).split(" ")
+                    if g == [""]:
                         g = []
                     err = command(
                         Context(
@@ -247,10 +245,12 @@ class Application:
         print(f"\nthis error occurred in {event}")
         sys.exit()
 
-    def on_command_error(self,error):
+    def on_command_error(self, error):
         if isinstance(error.error, KeyboardInterrupt):
             return
-        traceback.print_exception(error.exc_info[0], error.exc_info[1], error.exc_info[2])
+        traceback.print_exception(
+            error.exc_info[0], error.exc_info[1], error.exc_info[2]
+        )
         print(f"\nthis error occurred in {error.ctx.command.name}")
         sys.exit()
 
@@ -306,7 +306,6 @@ class Application:
         for module in self.modules:
             _s = _spacer - len(module.name)
             if _s == 0:
-
                 s = ""
             s = " " * _s
             if module.description:
@@ -393,7 +392,7 @@ class Application:
 
     def indentation_changed(self, ctx):
         if self.show_menu:
-            if self.indentation ==[]:
+            if self.indentation == []:
                 return self.main_menu()
             return self.internal_menu()
         self.show_menu = True
@@ -404,16 +403,16 @@ class Application:
         return module
 
     def load_events(self):
+        self.register_event("indentation_changed", self.indentation_changed)
+        self.register_event("keyboard_interrupt", self.kbd_interupt_event)
+        self.register_event("command_not_found", self.command_not_found)
+        self.register_event("on_command_error", self.on_command_error)
+        self.register_event("on_event_error", self.on_event_error)
+        self.register_event("kill_app", self.kill_app)
         self.register_event("on_ready", lambda: None)
         self.register_event("on_input", self.input_event)
         self.register_event("on_quit", self.quit_event)
         self.register_event("eof", self.eof_event)
-        self.register_event("command_not_found", self.command_not_found)
-        self.register_event("indentation_changed", self.indentation_changed)
-        self.register_event("on_command_error", self.on_command_error)
-        self.register_event("on_event_error", self.on_event_error)
-        self.register_event("kill_app", self.kill_app)
-        self.register_event("keyboard_interrupt", self.kbd_interupt_event)
 
     def load_completer(self):
         self.current_completion = None
@@ -423,7 +422,6 @@ class Application:
             readline.parse_and_bind("tab: complete")
 
         readline.set_completer(self.complete)
-        
 
     def load_base_commands(self):
         self.basecmd = BaseCommands()

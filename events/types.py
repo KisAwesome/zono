@@ -90,13 +90,14 @@ class EventGroup(Event):
         for i in self.events:
             try:
                 if hasattr(self, "instance"):
-                    returns.append(i(self.instance, *args, **kwds))
+                    ret = i(self.instance, *args, **kwds)
                     continue
-                returns.append(i(*args, **kwds))
+                ret = i(*args, **kwds)
+                if isinstance(ret, EventError):
+                    return ret
+                returns.append(ret)
 
             except BaseException as e:
                 info = sys.exc_info()
                 return EventError(e, info, self.name)
-        if len(returns) == 1:
-            return returns.pop()
         return returns

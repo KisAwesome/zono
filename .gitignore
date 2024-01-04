@@ -1,0 +1,11 @@
+cli/cli.py
+cli/cli.py
+.DS_Store
+zonocrypt/symmetric_encryption/image.png
+zonocrypt/symmetric_encryption/__pycache__/objcrypt.cpython-310.pyc
+zonocrypt/__pycache__/__init__.cpython-310.pyc
+zonocrypt/symmetric_encryption/__pycache__/objcrypt.cpython-310.pyc
+zonocrypt/__pycache__/__init__.cpython-310.pyc
+
+*.pyc
+cookies.yaml

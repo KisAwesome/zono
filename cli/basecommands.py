@@ -54,7 +54,7 @@ class BaseCommands(Module):
 
         ctx.app.internal_menu()
 
-    @command("..", "Goes back once in the menu", "Goes back once in the indentaion tree")
+    @command("..", "Goes back once in the menu", "Goes back once in the indentation tree")
     def back(self, ctx):
         if ctx.app.lock_cli:
             return
@@ -67,7 +67,9 @@ class BaseCommands(Module):
     def clear(self, ctx):
         if ctx.app.windows:
             return os.system("cls")
-        os.system("clear")
+        # os.system("clear")
+        print("\033c", end="")
+
 
     @command("exit", "Exits the application", "Exits the application")
     def exit(self, ctx):
@@ -141,7 +143,7 @@ class BaseCommands(Module):
             )
         except Exception as e:
             print(e)
-            print(f"This error occured in the completer function for {cmd.name}")
+            print(f"This error occurred in the completer function for {cmd.name}")
 
 
 
@@ -172,7 +174,7 @@ class BaseCommands(Module):
             )
         except Exception as e:
             print(e)
-            print(f"This error occured in the completer function for {cmd.name}")
+            print(f"This error occurred in the completer function for {cmd.name}")
     @shell_command.completer
     def shell_completer(self, ctx):
         if not ctx.app.windows:
