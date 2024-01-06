@@ -81,6 +81,13 @@ class EventSocket(ServerModule):
     @event()
     def get_connection_info(self,ctx):
         return ["event_socket_addr","event_socket","parent_addr"]
+    
+    @event()
+    def start_event_loop(self,ctx):
+        if self.is_event_socket(ctx.addr):
+            return False
+        
+        return True
 
     def send_event(self, addr, event):
         session = self.server.get_session(addr)

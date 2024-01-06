@@ -106,11 +106,7 @@ class EventSocket(ClientModule):
                 target=self.event_listener_, daemon=True
             )
             self.event_thread.start()
-            self.event_socket.interval = zono.workers.set_interval(
-                self.event_socket.status["timeout"] * 0.85,
-                self.event_socket.keep_alive,
-                daemon=True,
-            )
+
         else:
             raise Exception("Failed to start event listener")
 
