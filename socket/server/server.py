@@ -507,7 +507,15 @@ class SecureServer:
         if not isinstance(module, dict):
             return
         if "setup" in module:
-            module["setup"](Context(self, module=module))
+            import traceback
+
+            try:
+                module["setup"](Context(self, module=module))
+            except Exception as e:
+                traceback_lines = traceback.format_exception(type(e), e, e.__traceback__)
+                relevant_traceback = traceback_lines[1:]
+                print("".join(relevant_traceback).strip())
+                sys.exit(1)
         if "events" in module:
             for ev, handler in module["events"].items():
                 self.register_event(ev, handler)
