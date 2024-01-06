@@ -20,6 +20,7 @@ class PersistentSessions(ServerModule):
         self.run_event = self.server.run_event
         self.wrap_event = self.server.wrap_event
         self.check_session_store()
+        self.check_cookies()
 
     def sanitize_session(self, session):
         for i in (
@@ -35,6 +36,11 @@ class PersistentSessions(ServerModule):
         ):
             session.pop(i, None)
         return session
+    
+    def check_cookies(self):
+        if not self.server.isevent('create_cookies',True):
+            raise ValueError('Cookie handler event create_cookies is not available')
+            
 
     def check_session_store(self):
         for i in ("get_session", "save_session", "new_session"):
