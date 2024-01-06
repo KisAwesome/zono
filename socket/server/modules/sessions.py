@@ -12,8 +12,9 @@ class ServerName(ServerModule):
 
 
 class PersistentSessions(ServerModule):
-    def __init__(self,cookie_name=None):
-        self.cookie_name = cookie_name or '_session'
+    def __init__(self, cookie_name=None):
+        self.cookie_name = cookie_name or "_session"
+
     def setup(self, ctx):
         self.server = ctx.app
         self.run_event = self.server.run_event
@@ -25,7 +26,12 @@ class PersistentSessions(ServerModule):
             "conn",
             "key",
             self.cookie_name,
-            *(self.server.wrap_list_event('sanitize_session',Context(self.server,session=session)) or [])
+            *(
+                self.server.wrap_list_event(
+                    "sanitize_session", Context(self.server, session=session)
+                )
+                or []
+            ),
         ):
             session.pop(i, None)
         return session
@@ -43,9 +49,9 @@ class PersistentSessions(ServerModule):
     def create_session(self, ctx):
         s = self.wrap_event("create_session", ctx) or dict()
         token = self.run_event("new_session", ctx, s)
-        s[ self.cookie_name] = token
+        s[self.cookie_name] = token
         self.server.sessions[ctx.addr] |= s
-        return { self.cookie_name:token}
+        return {self.cookie_name: token}
 
     @event()
     def create_cookies(self, ctx):
@@ -70,7 +76,16 @@ class PersistentSessions(ServerModule):
 
     def get_connection_info(self, session):
         info = {}
-        for s in ("conn", "key",*(self.server.wrap_list_event('get_connection_info',Context(self.server,session=session)) or [])):
+        for s in (
+            "conn",
+            "key",
+            *(
+                self.server.wrap_list_event(
+                    "get_connection_info", Context(self.server, session=session)
+                )
+                or []
+            ),
+        ):
             i = session.get(s, None)
             if i:
                 info[s] = i

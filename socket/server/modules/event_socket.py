@@ -68,25 +68,25 @@ class EventSocket(ServerModule):
             self.server.close_socket(
                 ctx.session.event_socket, ctx.session.event_socket_addr
             )
-            
+
     @event()
-    def create_context(self,ctx):
-        if ctx._dict.get('addr',None) is not None:
-            ctx.send_event = lambda event: self.send_event(ctx.addr,event)
-            
+    def create_context(self, ctx):
+        if ctx._dict.get("addr", None) is not None:
+            ctx.send_event = lambda event: self.send_event(ctx.addr, event)
+
     @event()
-    def sanitize_session(self,ctx):
-        return ["event_socket_addr","event_socket","parent_addr"]
-    
+    def sanitize_session(self, ctx):
+        return ["event_socket_addr", "event_socket", "parent_addr"]
+
     @event()
-    def get_connection_info(self,ctx):
-        return ["event_socket_addr","event_socket","parent_addr"]
-    
+    def get_connection_info(self, ctx):
+        return ["event_socket_addr", "event_socket", "parent_addr"]
+
     @event()
-    def start_event_loop(self,ctx):
+    def start_event_loop(self, ctx):
         if self.is_event_socket(ctx.addr):
             return False
-        
+
         return True
 
     def send_event(self, addr, event):

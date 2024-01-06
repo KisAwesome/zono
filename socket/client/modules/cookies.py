@@ -38,7 +38,7 @@ class Cookies(ClientModule):
 
         server_name = self.client.server_info.get("name", "null")
         client_cookies = cookies.get(server_name, {})
-        if not isinstance(client_cookies,dict):
+        if not isinstance(client_cookies, dict):
             client_cookies = {}
         expiry = client_cookies.get("expires", None)
         if expiry is not None:

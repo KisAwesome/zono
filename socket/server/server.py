@@ -66,25 +66,25 @@ class SecureServer:
                 continue
             n |= i
         return n
-    def wrap_list_event(self, event,*args,**kwargs):
+
+    def wrap_list_event(self, event, *args, **kwargs):
         ret = self.run_event(event, *args, **kwargs)
         if ret is None:
             return ret
         lst = []
-        
+
         for i in ret:
-            if isinstance(i,list):
+            if isinstance(i, list):
                 lst.extend(i)
-                
+
         return lst
-        
-    
+
     def wrap_bool_event(self, ret, default=None):
         if ret is None:
             return default
         if isinstance(ret, EventGroupReturn):
             return all(ret)
-        return ret 
+        return ret
 
     def server_info(self):
         return dict(
@@ -408,7 +408,13 @@ class SecureServer:
             "on_connect",
             Context(self, conn=conn, addr=addr, session=self.get_session(addr)),
         )
-        if self.wrap_bool_event(self.run_event('start_event_loop',Context(self, conn=conn, addr=addr, session=self.get_session(addr))),default=True):
+        if self.wrap_bool_event(
+            self.run_event(
+                "start_event_loop",
+                Context(self, conn=conn, addr=addr, session=self.get_session(addr)),
+            ),
+            default=True,
+        ):
             self.recv_loop(conn, addr)
 
     def get_request(self, path):

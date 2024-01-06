@@ -161,6 +161,6 @@ class SecureSocket:
 
     def close(self):
         self.socket.close()
-        if hasattr(self, 'interval'):
+        if hasattr(self, "interval"):
             zono.workers.cancel_interval(self.interval)
         self.run_event("on_close", Context(self))
