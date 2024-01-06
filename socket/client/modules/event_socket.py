@@ -1,14 +1,14 @@
-import socket
+from zono.socket.client.securesocket import SecureSocket, Crypt
 import cryptography.hazmat.primitives.asymmetric.padding
 import cryptography.hazmat.primitives.asymmetric.rsa
 import cryptography.hazmat.primitives.serialization
-from zono.socket.client.securesocket import SecureSocket, Crypt
 from .module_helpers import ClientModule, event
 from zono.socket.client.types import Context
 import zono.zonocrypt
 import zono.workers
 import threading
 import secrets
+import socket
 
 
 class SecureEventSocket(SecureSocket):
