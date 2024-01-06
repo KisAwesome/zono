@@ -25,7 +25,7 @@ class EventManager:
 
     def isevent(self, event, event_group=False):
         if event_group:
-            return isinstance(self.events.get("event", None), EventGroup)
+            return isinstance(self.events.get(event, None), EventGroup)
 
         return event in self.events
 
