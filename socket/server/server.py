@@ -66,7 +66,19 @@ class SecureServer:
                 continue
             n |= i
         return n
-
+    def wrap_list_event(self, event,*args,**kwargs):
+        ret = self.run_event(event, *args, **kwargs)
+        if ret is None:
+            return ret
+        lst = []
+        
+        for i in ret:
+            if isinstance(i,list):
+                lst.extend(i)
+                
+        return lst
+        
+    
     def wrap_bool_event(self, ret, default=None):
         if isinstance(ret, EventGroupReturn):
             return all(ret)

@@ -73,6 +73,14 @@ class EventSocket(ServerModule):
     def create_context(self,ctx):
         if ctx._dict.get('addr',None) is not None:
             ctx.send_event = lambda event: self.send_event(ctx.addr,event)
+            
+    @event()
+    def sanitize_session(self,ctx):
+        return ["event_socket_addr","event_socket","parent_addr"]
+    
+    @event()
+    def get_connection_info(self,ctx):
+        return ["event_socket_addr","event_socket","parent_addr"]
 
     def send_event(self, addr, event):
         session = self.server.get_session(addr)
