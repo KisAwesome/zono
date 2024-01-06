@@ -48,7 +48,7 @@ class Event:
             if isinstance(e, SystemExit):
                 sys.exit()
             info = sys.exc_info()
-            if self.error_handler is not None:
+            if callable(self.error_handler):
                 self.error_handler(e, info, self.name)
                 return
             return EventError(e, info, self.name)
@@ -98,5 +98,9 @@ class EventGroup(Event):
 
             except BaseException as e:
                 info = sys.exc_info()
+                if callable(self.error_handler) :
+                    self.error_handler(e, info, self.name)
+                    return
                 return EventError(e, info, self.name)
         return returns
+        

@@ -91,10 +91,12 @@ class Request(Event):
             if isinstance(e, SystemExit):
                 sys.exit()
 
-            traceback.print_exc()
-
             info = sys.exc_info()
-            return RequestError(ctx, e, info)
+            err = RequestError(ctx, e, info)
+            if callable(self.error_handler):
+                self.error_handler(err.ctx)
+                return
+            return err
 
 
 class Middleware(Event):
@@ -113,7 +115,11 @@ class Middleware(Event):
             if isinstance(e, SystemExit):
                 sys.exit()
             info = sys.exc_info()
-            return MiddlewareError(ctx, e, info)
+            err = MiddlewareError(ctx, e, info)
+            if callable(self.error_handler):
+                self.error_handler(err.ctx)
+                return
+            return err
 
 
 class Sessions(dict):

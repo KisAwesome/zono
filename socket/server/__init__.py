@@ -10,4 +10,4 @@ from .types import (
     EventGroup,
     Context,
 )
-from .exceptions import ReceiveError, SendError
+from .exceptions import ReceiveError, SendError,ClientError
