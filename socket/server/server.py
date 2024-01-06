@@ -80,9 +80,11 @@ class SecureServer:
         
     
     def wrap_bool_event(self, ret, default=None):
+        if ret is None:
+            return default
         if isinstance(ret, EventGroupReturn):
             return all(ret)
-        return ret or default
+        return ret 
 
     def server_info(self):
         return dict(
@@ -406,7 +408,8 @@ class SecureServer:
             "on_connect",
             Context(self, conn=conn, addr=addr, session=self.get_session(addr)),
         )
-        self.recv_loop(conn, addr)
+        if self.wrap_bool_event(self.run_event('start_event_loop',Context(self, conn=conn, addr=addr, session=self.get_session(addr))),default=True):
+            self.recv_loop(conn, addr)
 
     def get_request(self, path):
         return self.paths.get(path, None)
