@@ -1,5 +1,5 @@
 from .module_helper import ServerModule, event
-import zono.socket.server
+from zono.socket.server.types import Context
 
 
 class ServerName(ServerModule):
@@ -12,6 +12,8 @@ class ServerName(ServerModule):
 
 
 class PersistentSessions(ServerModule):
+    def __init__(self,cookie_name=None):
+        self.cookie_name = cookie_name or '_session'
     def setup(self, ctx):
         self.server = ctx.app
         self.run_event = self.server.run_event
@@ -22,10 +24,8 @@ class PersistentSessions(ServerModule):
         for i in (
             "conn",
             "key",
-            "event_socket_addr",
-            "event_socket",
-            "_session",
-            "parent_addr",
+            self.cookie_name,
+            *(self.server.wrap_list_event('sanitize_session',Context(self.server,session=session)) or [])
         ):
             session.pop(i, None)
         return session
@@ -43,26 +43,26 @@ class PersistentSessions(ServerModule):
     def create_session(self, ctx):
         s = self.wrap_event("create_session", ctx) or dict()
         token = self.run_event("new_session", ctx, s)
-        s["_session"] = token
+        s[ self.cookie_name] = token
         self.server.sessions[ctx.addr] |= s
-        return dict(_session=token)
+        return { self.cookie_name:token}
 
     @event()
     def create_cookies(self, ctx):
-        token = ctx.cookies.get("_session", None)
+        token = ctx.cookies.get(self.cookie_name, None)
         s = self.run_event("get_session", token)
         if s is None:
             return self.create_session(ctx)
 
         self.server.sessions[ctx.addr] |= s
-        self.server.sessions[ctx.addr]["_session"] = token
-        return dict(_session=token)
+        self.server.sessions[ctx.addr][self.cookie_name] = token
+        return {self.cookie_name: token}
 
     @event()
     def on_session_close(self, ctx):
         if self.server.is_event_socket(ctx.addr):
             return
-        token = ctx.session.get("_session", None)
+        token = ctx.session.get(self.cookie_name, None)
         if token is None:
             return
         session = self.sanitize_session(ctx.session)
@@ -70,7 +70,7 @@ class PersistentSessions(ServerModule):
 
     def get_connection_info(self, session):
         info = {}
-        for s in ("conn", "key", "event_socket_addr", "event_socket", "parent_addr"):
+        for s in ("conn", "key",*(self.server.wrap_list_event('get_connection_info',Context(self.server,session=session)) or [])):
             i = session.get(s, None)
             if i:
                 info[s] = i
@@ -84,4 +84,4 @@ class PersistentSessions(ServerModule):
             raise ValueError("Session not found")
 
         self.server.sessions[addr] = session | s
-        self.server.sessions[addr]["_session"] = session_id
+        self.server.sessions[addr][self.cookie_name] = session_id
