@@ -89,9 +89,9 @@ class SecureSocket:
             num3,
             cryptography.hazmat.primitives.asymmetric.padding.OAEP(
                 mgf=cryptography.hazmat.primitives.asymmetric.padding.MGF1(
-                    algorithm=cryptography.hazmat.primitives.hashes.SHA384()
+                    algorithm=cryptography.hazmat.primitives.hashes.SHA512()
                 ),
-                algorithm=cryptography.hazmat.primitives.hashes.SHA384(),
+                algorithm=cryptography.hazmat.primitives.hashes.SHA512(),
                 label=None,
             ),
         )

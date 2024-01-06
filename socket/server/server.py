@@ -249,11 +249,9 @@ class SecureServer:
                         raise e.error
 
                 else:
-                    msg = "Client requested a path which does not exist"
-                    ctx.error = ClientError(msg)
-                    ctx.msg = msg
+                    err = ClientError(404,ctx=ctx)
 
-                    self.run_event("on_client_error", ctx)
+                    self.run_event("on_client_error", err.ctx)
                     self.send(
                         dict(
                             status=404, msg="Path not found", error=True, success=False
@@ -295,9 +293,9 @@ class SecureServer:
             num_3_enc,
             cryptography.hazmat.primitives.asymmetric.padding.OAEP(
                 mgf=cryptography.hazmat.primitives.asymmetric.padding.MGF1(
-                    algorithm=cryptography.hazmat.primitives.hashes.SHA384()
+                    algorithm=cryptography.hazmat.primitives.hashes.SHA512()
                 ),
-                algorithm=cryptography.hazmat.primitives.hashes.SHA384(),
+                algorithm=cryptography.hazmat.primitives.hashes.SHA512(),
                 label=None,
             ),
         )
@@ -438,7 +436,7 @@ class SecureServer:
     def middleware(self):
         def wrapper(func):
             if not callable(func):
-                raise ValueError("Request function must be callable")
+                raise ValueError("Middleware function must be callable")
             return self.register_middleware(func)
 
         return wrapper
