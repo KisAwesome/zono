@@ -24,17 +24,14 @@ import errno
 import sys
 
 
-Crypt = zono.zonocrypt.zonocrypt()
-
-
-logger = zono.colorlogger.create_logger("zono.server", level=1)
-
 
 class SecureServer:
     def __init__(self, ip="", port=None):
         self.port = port
         self.hostname = socket.gethostname()
         self.ip = ip or self.get_server_ip()
+        self.logger =  zono.colorlogger.create_logger("zono.server", level=1)
+        self.Crypt = zono.zonocrypt.zonocrypt()
         self.init()
 
     def init(self):
@@ -240,7 +237,7 @@ class SecureServer:
                     del ctx.next
                     e = handler(ctx)
                     if ctx.responded is False and self._warn_missing_response:
-                        logger.warning(
+                        self.logger.warning(
                             f"{path} did not return a response to the client"
                         )
                         self._warn_missing_response = False
@@ -306,7 +303,7 @@ class SecureServer:
         )
 
         key_deriv = num1 + num2 + num3
-        return Crypt.hashing_function(key_deriv)
+        return self.Crypt.hashing_function(key_deriv)
 
     def create_connection_session(self, conn, addr):
         self.sessions[addr] = Store(conn=conn)
