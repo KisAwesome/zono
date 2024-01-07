@@ -202,14 +202,6 @@ class SecureServer:
 
                 raw_pkt = self.recv(conn, addr, timeout=self.timeout_duration)
                 pkt = self.wrap_pkt(raw_pkt)
-                if not self.wrap_bool_event(
-                    self.run_event(
-                        "after_packet",
-                        Context(self, conn=conn, addr=addr, session=_session, pkt=pkt),
-                    ),
-                    default=True,
-                ):
-                    return self.close_socket(conn, addr)
                 ctx = Context(
                     self,
                     pkt=pkt,
@@ -219,6 +211,14 @@ class SecureServer:
                     next=self.next,
                     raw_pkt=raw_pkt,
                 )
+                if not self.wrap_bool_event(
+                    self.run_event(
+                        "after_packet",
+                        ctx,
+                    ),
+                    default=True,
+                ):
+                    return self.close_socket(conn, addr)
                 if pkt.get("_keepalive", None) == True:
                     continue
                 path = pkt.get("path", None)
@@ -251,6 +251,7 @@ class SecureServer:
 
                         raise e.error
 
+                    self.run_event('on_request_processed',ctx)
                 else:
                     err = ClientError(404,ctx=ctx)
 

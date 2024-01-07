@@ -29,10 +29,10 @@ class ServerModule:
             elif isinstance(v, EventGroup) or isinstance(v, Event):
                 v.instance = cls
                 module["events"][i] = v
+        cls.__init__(*args, **kwargs)
         if hasattr(cls, "setup"):
             module["setup"] = cls.setup
         if hasattr(cls, "module"):
             cls.module(module)
-        cls.__init__(*args, **kwargs)
 
         return module

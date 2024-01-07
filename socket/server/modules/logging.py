@@ -1,12 +1,21 @@
 import logging
 from .module_helper import ServerModule, event
+import time
 
 logger = logging.getLogger("zono.server")
 
 
 class Logging(ServerModule):
+    def __init__(self,requests=False):
+        self.requests = requests
+        
     def setup(self, ctx):
         self.form_addr = ctx.app.form_addr
+        
+    def module(self, module):
+        if self.requests is False:
+            module['events'].pop('on_request_processed')
+            module['events'].pop('after_packet')
 
     @event()
     def on_connect(self, ctx):
@@ -42,3 +51,12 @@ class Logging(ServerModule):
     @event()
     def on_connect_fail(self, ctx):
         logger.error(f"{self.form_addr(ctx.addr)} connection initiation failed")
+    
+    @event()
+    def after_packet(self,ctx):
+        ctx.pkt_time = time.time()
+        
+    @event()
+    def on_request_processed(self,ctx):
+        elapsed_time = round((time.time() - ctx.pkt_time) *1000,3)
+        logger.info(f'{ctx.app.form_addr(ctx.addr)} /{ctx.pkt.get("path")} {elapsed_time}ms')
