@@ -59,7 +59,7 @@ class SecureServer:
         n = dict()
         for i in ret:
             if i is None:
-                print(f"ERROR event: {event} a sub event in group returned None")
+                self.logger.error(f"a sub event in {event} group returned None")
                 continue
             n |= i
         return n
@@ -68,13 +68,16 @@ class SecureServer:
         ret = self.run_event(event, *args, **kwargs)
         if ret is None:
             return ret
-        lst = []
+        
+        if isinstance(ret,EventGroupReturn):
+            lst = []
 
-        for i in ret:
-            if isinstance(i, list):
-                lst.extend(i)
+            for i in ret:
+                if isinstance(i, list):
+                    lst.extend(i)
 
-        return lst
+            return lst
+        return ret
 
     def wrap_bool_event(self, ret, default=None):
         if ret is None:
