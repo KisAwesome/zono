@@ -77,7 +77,7 @@ class PersistentSessions(ServerModule):
         token = ctx.session.get(self.cookie_name, None)
         if token is None:
             return
-        session = self.sanitize_session(ctx.session)
+        session = self.sanitize_session(ctx.session.copy())
         self.run_event("save_session", token, session)
 
     def get_connection_info(self, session):

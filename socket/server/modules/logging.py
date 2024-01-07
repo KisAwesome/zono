@@ -33,7 +33,7 @@ class Logging(ServerModule):
 
     @event()
     def on_client_error(self, ctx):
-        logger.error(f"Client error {self.form_addr(ctx.addr)}: {ctx.wrapped_error} {ctx.pkt}")
+        logger.error(f"Client error {self.form_addr(ctx.addr)}: {ctx.wrapped_error} {ctx._dict.get('pkt','')}")
 
     @event()
     def on_connection_refusal(self, ctx):
