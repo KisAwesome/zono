@@ -239,7 +239,7 @@ class SecureServer:
                     handler = self.paths[path]
                     del ctx.next
                     e = handler(ctx)
-                    if ctx.responded is False and self._warn_missing_response:
+                    if len(ctx.responses) == 0 and self._warn_missing_response:
                         self.logger.warning(
                             f"{path} did not return a response to the client"
                         )
