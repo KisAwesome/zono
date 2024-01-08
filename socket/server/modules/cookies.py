@@ -5,6 +5,14 @@ import time
 class Cookies(ServerModule):
     def __init__(self, expires=None):
         self.expires = expires
+        
+    def check_server_name(self):
+        if not hasattr(self.server,'name'):
+            raise ValueError('Server does not have a name')
+      
+    def setup(self,ctx):
+        self.server = ctx.app
+        self.check_server_name()
 
     @event()
     def connection_established_info(self, ctx):
