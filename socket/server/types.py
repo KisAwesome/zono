@@ -44,8 +44,7 @@ def event(event_name=None):
 def send_wrapper(ctx, app):
     def wrapped(pkt):
         app.send(pkt, ctx.conn, ctx.addr)
-        ctx.responded = True
-        ctx._dict["responded"] = True
+        ctx.responses.append(pkt)
 
     return wrapped
 
@@ -58,12 +57,12 @@ class Context:
         self.store = app.store
         self._dict = dict(app=app, store=self.store, **kwargs)
         if hasattr(self, "conn") and hasattr(self, "addr"):
-            self.responded = False
+            self.responses = []
             self.send = send_wrapper(self, app)
             self.recv = lambda: self.app.recv(self.conn, self.addr)
             self.close_socket = lambda: self.app.close_socket(self.conn, self.addr)
             self._dict |= dict(
-                responded=False,
+                responses=self.responses,
                 send=self.send,
                 recv=self.recv,
                 close_socket=self.close_socket,
