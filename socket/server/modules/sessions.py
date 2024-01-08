@@ -5,6 +5,9 @@ from zono.socket.server.types import Context
 class ServerName(ServerModule):
     def __init__(self, name):
         self.name = name
+        
+    def setup(self,ctx):
+        ctx.app.name = self.name
 
     @event()
     def server_info(self, ctx):
