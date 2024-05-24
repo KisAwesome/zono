@@ -8,11 +8,8 @@ from .types import (
     Sessions,
 )
 from .exceptions import *
-import cryptography.hazmat.primitives.asymmetric.padding
-import cryptography.hazmat.primitives.asymmetric.rsa
-import cryptography.hazmat.primitives.serialization
+from .encryption import *
 import zono.colorlogger
-import zono.zonocrypt
 import zono.workers
 import zono.events
 import zono.socket
@@ -41,14 +38,14 @@ class SecureServer:
         self._shutting_down = False
         self.timeout_duration = 10
         self.kill_on_error = True
-        self.init_buffer = 512
+        self.init_buffer = 64
         self.middlewares = []
         self.format = "utf-8"
         self.store = Store()
         self.next_mw = False
         self.intervals = []
         self.modules = []
-        self.buffer = 512
+        self.buffer = 128
         self.paths = {}
         self.load_events()
 
@@ -123,6 +120,7 @@ class SecureServer:
                 raise
 
     def shutdown(self):
+        self.run_event('shutdown_server',Context(self))
         if self._shutting_down:
             return
         self._shutting_down = True
@@ -138,13 +136,14 @@ class SecureServer:
             except:
                 pass
             self.socket.close()
+        self.run_event('server_closed',Context(self))
 
     def init_socket(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.ip, self.port))
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    def _close_socket(self, conn, addr):
+    def _close_socket(self, conn, addr,connected=True):
         session = self.get_session(addr)
         if session is not None:
             self.run_event(
@@ -157,7 +156,8 @@ class SecureServer:
         except OSError:
             pass
         conn.close()
-        self.run_event(
+        if connected:
+            self.run_event(
             "on_disconnect", Context(self, conn=conn, addr=addr, session=session)
         )
 
@@ -188,92 +188,108 @@ class SecureServer:
 
     def recv_loop(self, conn, addr):
         while True:
-            try:
-                _session = self.get_session(addr)
+            _session = self.get_session(addr)
 
-                if not self.wrap_bool_event(
-                    self.run_event(
-                        "before_packet",
-                        Context(self, conn=conn, addr=addr, session=_session),
-                    ),
-                    default=True,
-                ):
-                    return self.close_socket(conn, addr)
-
-                raw_pkt = self.recv(conn, addr, timeout=self.timeout_duration)
-                pkt = self.wrap_pkt(raw_pkt)
-                ctx = Context(
-                    self,
-                    pkt=pkt,
-                    conn=conn,
-                    addr=addr,
-                    session=_session,
-                    next=self.next,
-                    raw_pkt=raw_pkt,
-                )
-                if not self.wrap_bool_event(
-                    self.run_event(
-                        "after_packet",
-                        ctx,
-                    ),
-                    default=True,
-                ):
-                    return self.close_socket(conn, addr)
-                if pkt.get("_keepalive", None) == True:
-                    continue
-                path = pkt.get("path", None)
-                ctx.request = path
-                self.next_mw = True
-                for i in self.middlewares:
-                    if not self.next_mw:
-                        break
-                    self.next_mw = False
-                    ret = i(ctx)
-                    if isinstance(ret, MiddlewareError):
-                        self.run_event("on_middleware_error", ret.ctx, ret.error)
-
-                if not self.next_mw:
-                    continue
-
-                if path in self.paths:
-                    handler = self.paths[path]
-                    del ctx.next
-                    e = handler(ctx)
-                    if len(ctx.responses) == 0 and self._warn_missing_response:
-                        self.logger.warning(
-                            f"{path} did not return a response to the client"
-                        )
-                        self._warn_missing_response = False
-
-                    if isinstance(e, RequestError):
-                        if self.isevent("on_request_error"):
-                            return self.run_event("on_request_error", e.ctx, e.error)
-
-                        raise e.error
-
-                    self.run_event('on_request_processed',ctx)
-                else:
-                    err = ClientError(404,ctx=ctx)
-
-                    self.run_event("on_client_error", err.ctx)
-                    self.send(
-                        dict(
-                            status=404, msg="Path not found", error=True, success=False
-                        ),
-                        conn,
-                        addr,
-                    )
-
-            except ReceiveError as e:
+            if not self.wrap_bool_event(
+                self.run_event(
+                    "before_packet",
+                    Context(self, conn=conn, addr=addr, session=_session),
+                ),
+                default=True,
+            ):
                 return self.close_socket(conn, addr)
+            try:
+                raw_pkt = self.recv(conn, addr, timeout=self.timeout_duration)
+            except ReceiveError as e:
+                print(e)
+                if e.errorno in ():
+                    continue
+                return self.close_socket(conn, addr)
+            pkt = self.wrap_pkt(raw_pkt)
+            ctx = Context(
+                self,
+                pkt=pkt,
+                conn=conn,
+                addr=addr,
+                session=_session,
+                next=self.next,
+                raw_pkt=raw_pkt,
+            )
+            if not self.wrap_bool_event(
+                self.run_event(
+                    "after_packet",
+                    ctx,
+                ),
+                default=True,
+            ):
+                return self.close_socket(conn, addr)
+            if pkt.get("_keepalive", None) == True:
+                continue
+            self.handle_request(ctx, pkt,conn,addr)
+            
 
+    def handle_request(self,ctx,pkt,conn,addr):
+        path = pkt.get("path", None)
+        ctx.request = path
+        self.next_mw = True
+        for i in self.middlewares:
+            if not self.next_mw is True:
+                break
+            self.next_mw = False
+            ret = i(ctx)
+            if isinstance(ret, MiddlewareError):
+                self.run_event("on_middleware_error", ret.ctx, ret.error)
+
+        if not self.next_mw is True:
+            return
+        
+        if isinstance(path,str) and path in self.paths:
+            handler = self.paths[path]
+            self.next_mw = True
+            for i in handler.middlewares:
+                if not self.next_mw is True:
+                    return
+                self.next_mw = False
+                ret = i(ctx)
+                ctx.path_middleware = True
+                if isinstance(ret, MiddlewareError):
+                    self.run_event("on_middleware_error", ret.ctx, ret.error)
+            if not self.next_mw is True:
+                return
+            del ctx.next
+            e = handler(ctx)
+            if len(ctx.responses) == 0 and self._warn_missing_response:
+                self.logger.warning(
+                    f"{path} did not return a response to the client"
+                )
+                self._warn_missing_response = False
+
+            if isinstance(e, RequestError):
+                if self.isevent("on_request_error"):
+                    return self.run_event("on_request_error", e.ctx, e.error)
+
+                raise e.error
+
+            self.run_event('on_request_processed',ctx)
+        else:
+            err = ClientError(404,ctx=ctx)
+
+            self.run_event("on_client_error", err.ctx)
+            self.send(
+                dict(
+                    status=404, msg="Path not found", error=True, success=False
+                ),
+                conn,
+                addr,
+            )
+    
     def wrap_pkt(self, pkt):
         if isinstance(pkt, dict):
             return Store(pkt)
         return Store(dict(content=pkt, raw=True))
 
     def init_connection(self, conn):
-        echo_pkt = self.recv_raw(conn, self.init_buffer, 2)
+        echo_pkt = self.recv_raw(conn, self.init_buffer, 1)
         num1 = echo_pkt["num"]
 
         private_key = (
@@ -291,7 +307,7 @@ class SecureServer:
         num2 = secrets.token_bytes(32)
         self.send_raw(dict(pem=pem, kdn=num2), conn, self.init_buffer)
 
-        num_3_enc = self.recv_raw(conn, self.init_buffer, 2)["num"]
+        num_3_enc = self.recv_raw(conn, self.init_buffer, 1)["num"]
 
         num3 = private_key.decrypt(
             num_3_enc,
@@ -324,14 +340,14 @@ class SecureServer:
             key = self.init_connection(conn)
             self.get_session(addr)["key"] = key
 
-        except Exception as e:
+        except ReceiveError as e:
             self.run_event(
                 "on_connect_fail",
                 Context(
                     self, error=e, addr=addr, conn=conn, session=self.get_session(addr)
                 ),
             )
-            return self.close_socket(conn, addr)
+            return self._close_socket(conn, addr,False)
         self.send(
             dict(
                 status=200,
@@ -354,7 +370,7 @@ class SecureServer:
             self.init_buffer,
         )
 
-        client_info = self.recv(conn, addr, self.init_buffer, 2)
+        client_info = self.recv(conn, addr, self.buffer, 2)
 
         if not self.wrap_bool_event(
             self.run_event(
@@ -419,21 +435,32 @@ class SecureServer:
     def get_request(self, path):
         return self.paths.get(path, None)
 
-    def register_path(self, path, func):
-        req = Request(path, func)
+    def register_path(self, path, func,*middlewares):
+        if not callable(func):
+            raise ValueError("Path handler must be callable")
+        for i in middlewares:
+            if not callable(i):
+                raise ValueError("All middlewares must be callable")
+        if isinstance(func,Request):
+            req = func
+        else:
+            req = Request(path, func,middlewares)
         self.paths[path] = req
         return req
 
     def register_middleware(self, func):
-        mw = Middleware(func)
+        if isinstance(func, Middleware):
+            mw = func
+        else:
+            mw = Middleware(func)
         self.middlewares.append(mw)
         return mw
 
-    def route(self, path):
+    def route(self, path,*middlewares):
         def wrapper(func):
             if not callable(func):
                 raise ValueError("Request function must be callable")
-            return self.register_path(path, func)
+            return self.register_path(path, func,*middlewares)
 
         return wrapper
 
@@ -449,6 +476,7 @@ class SecureServer:
         return socket.gethostbyname(self.hostname)
 
     def on_event_error(self, error, event, exc_info):
+
         traceback.print_exception(
             exc_info[0], exc_info[1], exc_info[2], file=sys.stderr
         )
@@ -456,6 +484,7 @@ class SecureServer:
         print(f"\nthis error occurred in {event}", file=sys.stderr)
         if self.kill_on_error:
             self.shutdown()
+            sys.exit(1)
 
     def on_request_error(self, ctx, error):
         traceback.print_exception(
@@ -465,15 +494,21 @@ class SecureServer:
         print(f"\nthis error occurred in {ctx.request}", file=sys.stderr)
         if self.kill_on_error:
             self.shutdown()
+            
 
     def on_middleware_error(self, ctx, error):
         traceback.print_exception(
             ctx.exc_info[0], ctx.exc_info[1], ctx.exc_info[2], file=sys.stderr
         )
         print(error, file=sys.stderr)
-        print(f"\nthis error occurred in middleware function", file=sys.stderr)
+        if getattr(ctx,'path_middleware') is True:
+            print(f"\nthis error occurred in middleware function for path {ctx.path}", file=sys.stderr)
+        else:
+            print(f"\nthis error occurred in middleware function", file=sys.stderr)
         if self.kill_on_error:
-            self.shutdown()
+            # self.shutdown()
+            raise error
+
 
     def session_update(self, key, value, action):
         self.run_event(
@@ -483,6 +518,7 @@ class SecureServer:
     def load_events(self):
         self.register_event("on_request_error", self.on_request_error)
         self.register_event("on_middleware_error", self.on_middleware_error)
+        self.set_event('on_event_error',self.on_event_error)
 
     def get_session_key(self, addr):
         s = self.sessions.get(addr, None)
@@ -535,6 +571,7 @@ class SecureServer:
         self.modules.append(module)
 
     def send_raw(self, pkt, conn, buffer=None):
+        buffer = buffer or self.buffer
         return zono.socket.send_raw(conn, pkt, self.format, buffer)
 
     def recv_raw(self, conn, buffer=None, timeout=None):
@@ -545,5 +582,6 @@ class SecureServer:
         return False
 
     def run(self):
+        self.run_event('startup',Context(self))
         self.init_socket()
         self.accept_connections()
