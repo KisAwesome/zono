@@ -5,8 +5,8 @@ from zono.socket.server.types import Context
 class ServerName(ServerModule):
     def __init__(self, name):
         self.name = name
-        
-    def setup(self,ctx):
+
+    def setup(self, ctx):
         ctx.app.name = self.name
 
     @event()
@@ -22,8 +22,7 @@ class PersistentSessions(ServerModule):
         self.server = ctx.app
         self.run_event = self.server.run_event
         self.wrap_event = self.server.wrap_event
-        self.check_session_store()
-        self.check_cookies()
+
 
     def sanitize_session(self, session):
         for i in (
@@ -39,11 +38,10 @@ class PersistentSessions(ServerModule):
         ):
             session.pop(i, None)
         return session
-    
+
     def check_cookies(self):
-        if not self.server.isevent('create_cookies',True):
-            raise ValueError('Cookie handler event create_cookies is not available')
-            
+        if not self.server.isevent("create_cookies", True):
+            raise ValueError("Cookie handler event create_cookies is not available")
 
     def check_session_store(self):
         for i in ("get_session", "save_session", "new_session"):
@@ -82,30 +80,50 @@ class PersistentSessions(ServerModule):
             return
         session = self.sanitize_session(ctx.session.copy())
         self.run_event("save_session", token, session)
-
-    def get_connection_info(self, session):
-        info = {}
-        for s in (
-            "conn",
-            "key",
-            *(
-                self.server.wrap_list_event(
-                    "get_connection_info", Context(self.server, session=session)
-                )
-                or []
-            ),
-        ):
-            i = session.get(s, None)
-            if i:
-                info[s] = i
-        return info
-
+        
     @event()
-    def load_session(self, addr, session_id):
-        session = self.get_connection_info(self.server.get_session(addr))
-        s = self.run_event("get_session", session_id)
-        if s is None:
-            raise ValueError("Session not found")
+    def startup(self,ctx):
+        self.check_session_store()
+        self.check_cookies()
 
-        self.server.sessions[addr] = session | s
-        self.server.sessions[addr][self.cookie_name] = session_id
+    # def get_connection_info(self, session):
+    #     info = {}
+    #     for s in (
+    #         "conn",
+    #         "key",
+    #         *(
+    #             self.server.wrap_list_event(
+    #                 "get_connection_info", Context(self.server, session=session)
+    #             )
+    #             or []
+    #         ),
+    #     ):
+    #         i = session.get(s, None)
+    #         if i:
+    #             info[s] = i
+    #     return info
+
+    # @event()
+    # def load_session(self, addr, session_id):
+    #     session = self.get_connection_info(self.server.get_session(addr))
+    #     print(session_id)
+    #     s = self.run_event("get_session", session_id)
+    #     if s is None:
+    #         raise ValueError("Session not found")
+
+    #     self.server.sessions[addr] = session | s
+    #     self.server.sessions[addr][self.cookie_name] = session_id
+
+    
+    # @event()
+    # def create_context(self,ctx):
+    #     if hasattr(ctx,'session'):
+    #         s = ctx.session.copy()
+    #         for i in ('key','conn',
+    #         *(self.server.wrap_list_event(
+    #                 "prepare_user_session", Context(self.server, session=ctx.session)
+    #             )
+    #             or [])
+    #         ):
+    #             s.pop(i,None)
+    #         ctx.user_session = s
