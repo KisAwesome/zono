@@ -6,8 +6,10 @@ import zono.zonocrypt
 import zono.workers
 import zono.events
 import zono.socket
+import traceback
 import secrets
 import socket
+import sys
 
 Crypt = zono.zonocrypt.zonocrypt()
 
@@ -19,13 +21,15 @@ def wrap_error(e):
 
 class SecureSocket:
     def __init__(self):
-        self.buffer = 512
+        self.buffer = 64
         self.format = "utf-8"
         self.timeout = None
         self.server_info = None
         self.connection_info = None
+        self.kill_on_error = True
         self.modules = []
         zono.events.attach(self, always_event_group=True)
+        self.set_event('on_event_error',self.on_event_error)
 
     def load_module(self, module):
         if not isinstance(module, dict):
@@ -72,7 +76,7 @@ class SecureSocket:
         num1 = secrets.token_bytes(32)
         try:
             self.send_raw(dict(num=num1))
-            pkt = self.recv_raw()
+            pkt = self.recv_raw(1)
         except zono.socket.ReceiveError as e:
             raise zono.socket.ConnectionFailed(9) from wrap_error(e)
         except zono.socket.SendError as e:
@@ -100,7 +104,7 @@ class SecureSocket:
         key_deriv = num1 + num2 + num3
         self.session_key = Crypt.hashing_function(key_deriv)
 
-        status = self.recv()
+        status = self.recv(timeout=1)
         self.connection_info = status
         self.server_info = status.copy()
         self.clean_server_info()
@@ -109,7 +113,7 @@ class SecureSocket:
 
         self.send(self.wrap_event("client_info", Context(self)) or {})
 
-        self.final_connect_info = self.recv()
+        self.final_connect_info = self.recv(timeout=1)
         if not (self.final_connect_info.get("success", False) is True):
             raise zono.socket.ConnectionFailed(7)
 
@@ -164,3 +168,15 @@ class SecureSocket:
         if hasattr(self, "interval"):
             zono.workers.cancel_interval(self.interval)
         self.run_event("on_close", Context(self))
+
+    
+    def on_event_error(self, error, event, exc_info):
+
+        traceback.print_exception(
+            exc_info[0], exc_info[1], exc_info[2], file=sys.stderr
+        )
+        print(error, file=sys.stderr)
+        print(f"\nthis error occurred in {event}", file=sys.stderr)
+        if self.kill_on_error:
+            self.close()
+            sys.exit(1)
