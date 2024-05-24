@@ -4,3 +4,4 @@ from .sessions import PersistentSessions, ServerName
 from .cookies import Cookies
 from .logging import Logging
 from .event_socket import EventSocket
+from .file_host import FileHost
