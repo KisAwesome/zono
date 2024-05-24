@@ -13,7 +13,7 @@ import socket
 
 class SecureEventSocket(SecureSocket):
     def _connect(self, addr):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  
         try:
             self.socket.connect(addr)
 
@@ -50,7 +50,7 @@ class SecureEventSocket(SecureSocket):
         key_deriv = num1 + num2 + num3
         self.session_key = Crypt.hashing_function(key_deriv)
 
-        self.status = self.recv(buffer=512)
+        self.status = self.recv(buffer=self.buffer)
         self.buffer = self.status.get("buffer", self.buffer)
         self.format = self.status.get("format", self.format)
 
@@ -116,8 +116,10 @@ class EventSocket(ClientModule):
     def on_connect(self, ctx):
         if ctx.status.get("event_socket", False) is True:
             self.start_event_listener(ctx.addr)
+            ctx.app.event_socket = self
 
     @event()
     def on_close(self, ctx):
-        self.event_socket.close()
-        self.event_thread.join()
+        if hasattr(self,'event_socket'):
+            self.event_socket.close()
+            self.event_thread.join()
