@@ -14,6 +14,10 @@ class ApplicationError(Exception):
         self.error = error
         self.exc_info = exc_info
         super().__init__(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{type(self).__name__} {self.error!r}"
+
 
 
 class RequestError(ApplicationError):
