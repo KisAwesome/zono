@@ -1,9 +1,9 @@
 from .module_helper import ServerModule, event
 from zono.socket.server.types import Context
-from zono.socket.server.exceptions import ClientError,client_errors
+from zono.socket.server.exceptions import ClientError, client_errors
 
 
-client_errors[129] = 'Address has no registered event socket'
+client_errors[129] = "Address has no registered event socket"
 
 
 class EventSocket(ServerModule):
@@ -82,7 +82,7 @@ class EventSocket(ServerModule):
         return ["event_socket_addr", "event_socket", "parent_addr"]
 
     @event()
-    def get_connection_info(self, ctx):
+    def prepare_user_session(self, ctx):
         return ["event_socket_addr", "event_socket", "parent_addr"]
 
     @event()
@@ -100,6 +100,8 @@ class EventSocket(ServerModule):
         ev_sock = session.get("event_socket", None)
         ev_addr = session.get("event_socket_addr", None)
         if ev_sock is None or ev_addr is None:
-            raise ClientError(129,ctx=Context(self.server,addr=addr,event_to_send=event))
+            raise ClientError(
+                129, ctx=Context(self.server, addr=addr, event_to_send=event)
+            )
 
         self.server.send(event, ev_sock, ev_addr)
