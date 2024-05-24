@@ -10,6 +10,7 @@ import uuid
 import time
 import yaml
 import os
+import umsgpack
 
 
 class IncorrectDecryptionKey(Exception):
@@ -39,9 +40,12 @@ class zonocrypt:
         SHA3_512,
     ]
 
-    def __init__(self, hash_algorithm=SHA512):
+    def __init__(self, hash_algorithm=SHA512,serialization='umsgpack'):
+        if serialization not in ('umsgpack', 'yaml'):
+            raise ValueError('Invalid serialization method')
         if hash_algorithm not in zonocrypt.hashes:
             raise TypeError("Unsupported hash algorithm")
+        self.serialization = serialization 
         self.hash_algorithm = hash_algorithm
 
     def check_valid_key(self, key):
@@ -76,11 +80,7 @@ class zonocrypt:
 
     def encrypt(self, data, key):
         f = Fernet(key)
-        if not isinstance(data, str):
-            data = self.encode(data)
-        else:
-            data = data.encode('utf-8')
-
+        data = self.encode(data)
         return f.encrypt(data)
 
     def decrypt(self, encrypted, key):
@@ -156,8 +156,18 @@ class zonocrypt:
         return int.from_bytes(byte, "big")
     
     def encode(self, obj):
-        return yaml.safe_dump(obj).encode("utf-8")
+        if self.serialization == 'umsgpack':
+            return umsgpack.dumps(obj)
+        elif self.serialization == 'yaml':
+            return yaml.safe_dump(obj).encode("utf-8")
 
     def decode(self, encobj):
-        return yaml.safe_load(encobj)
+        if self.serialization == 'umsgpack':
+            return umsgpack.loads(encobj)
+        elif self.serialization == 'yaml':
+            return yaml.safe_load(encobj)
 
+if __name__ == '__main__':
+    c = zonocrypt(serialization='umsgpack')
+    
+    g = c.encode('ping 10')
