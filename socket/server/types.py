@@ -74,7 +74,8 @@ class Context:
 
 
 class Request(Event):
-    def __init__(self, path, callback):
+    def __init__(self, path, callback,middlewares=[]):
+        self.middlewares = middlewares
         self.path = path
         self.callback = callback
         self.error_handler = None
@@ -108,7 +109,7 @@ class Middleware(Event):
     def __call__(self, ctx):
         try:
             if has_instance(self):
-                self.callback(self.instance, ctx)
+                return self.callback(self.instance, ctx)
             self.callback(ctx)
         except BaseException as e:
             if isinstance(e, SystemExit):
