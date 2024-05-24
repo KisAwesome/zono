@@ -37,7 +37,8 @@ class Cookies(ClientModule):
             cookies = form_cookies(yaml.safe_load(file))
 
         server_name = self.client.server_info.get("name", "null")
-        client_cookies = cookies.get(server_name, {})
+        client_cookies = form_cookies(cookies.get(server_name, {}))
+     
   
         expiry = client_cookies.get("expires", None)
         if expiry is not None:
