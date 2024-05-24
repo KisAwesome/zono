@@ -19,6 +19,7 @@ class EventManager:
         self.attached_to = None
         self.always_event_group = always_event_group
         self.register_event("on_event_error", self.on_event_error)
+        self.register_event("event_handler_error",self.event_handler_error)
 
     def remove_event(self, event):
         return self.events.pop(event, None)
@@ -90,14 +91,26 @@ class EventManager:
     def run_event(self, event, *args, **kwargs):
         ret = self._run_event(event, *args, **kwargs)
         if isinstance(ret, EventError):
-            self._run_event("on_event_error", ret.error, event, ret.exc_info)
+            r = self._run_event("on_event_error", ret.error, event, ret.exc_info)
+            if isinstance(r, EventError):
+                raise r.error
+                # g =self._run_event('event_handler_error',ret.error, event, ret.exc_info,r.error,'on_event_error',r.exc_info)
+            
+                # if isinstance(g, EventError):
+                #     raise ret.error
             return
         return ret
 
     def on_event_error(self, error, event, exc_info):
         traceback.print_exception(exc_info[0], exc_info[1], exc_info[2])
-        print(error)
         print(f"\nthis error occurred in {event}")
+        
+    def event_handler_error(self,origin_error,origin_event,origin_exc_info,error,event,exc_info):
+        self.on_event_error(origin_error,origin_event,origin_exc_info)
+        print()
+        traceback.print_exception(exc_info[0], exc_info[1], exc_info[2])
+        print(f'\nAn error occurred in {event} while handling error for {origin_event}')
+
 
     def attach(self, cls):
         if not self.attached_to is None:
