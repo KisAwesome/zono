@@ -3,7 +3,7 @@ from zono.events import Event, EventGroup
 
 
 class Client(object):
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> SecureSocket:
         socket = SecureSocket()
         if cls == Client:
             return socket
