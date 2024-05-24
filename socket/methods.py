@@ -3,6 +3,7 @@ import zono.zonocrypt
 import socket
 import errno
 
+
 show_full_error = False
 
 
@@ -51,8 +52,12 @@ def recv(conn, buffer, timeout, session_key, _format):
         if err.errno == errno.EBADF:
             raise ReceiveError(6) from wrap_error(err)
     try:
-        msg_len = int(_recv(conn, buffer).decode(_format))
+        pck = _recv(conn, buffer).decode(_format)
+        if len(pck) == 0:
+            raise ReceiveError(12)
+        msg_len = int(pck)
     except ValueError as e:
+        print(pck)
         raise ReceiveError(1) from wrap_error(e)
 
     msg = _recv(conn, msg_len)
