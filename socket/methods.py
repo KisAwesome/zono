@@ -38,6 +38,8 @@ def _send(conn, data):
         raise SendError(2) from wrap_error(e)
     except BrokenPipeError as e:
         raise SendError(6) from wrap_error(e)
+    except ConnectionAbortedError as e:
+        raise SendError(13) from wrap_error(e)
     except OSError as err:
         if err.errno == errno.EBADF:
             raise SendError(4) from wrap_error(err)

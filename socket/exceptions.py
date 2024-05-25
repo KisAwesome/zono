@@ -10,7 +10,8 @@ errors = {
     9: "Initial handshake with the server failed",
     10: "Lost connection to the server while performing initial handshake",
     11: "An unknown error occurred while performing initial handshake",
-    12:"Recieved no message length bytes"
+    12:"Recieved no message length bytes",
+    13:"An established connection to the server was aborted"
 }
 
 
