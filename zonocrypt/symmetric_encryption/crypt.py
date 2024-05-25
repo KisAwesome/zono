@@ -40,7 +40,7 @@ class zonocrypt:
         SHA3_512,
     ]
 
-    def __init__(self, hash_algorithm=SHA512,serialization='umsgpack'):
+    def __init__(self, hash_algorithm=SHA512,serialization='yaml'):
         if serialization not in ('umsgpack', 'yaml'):
             raise ValueError('Invalid serialization method')
         if hash_algorithm not in zonocrypt.hashes:
@@ -171,3 +171,5 @@ if __name__ == '__main__':
     c = zonocrypt(serialization='umsgpack')
     
     g = c.encode('ping 10')
+
+
