@@ -20,7 +20,7 @@ import re
 
 class Application:
     def __init__(self):
-        zono.events.attach(self, False)
+        zono.events.attach(self, True)
         self.modules = []
         self.indentation = []
         self.base_commands = []
@@ -112,7 +112,8 @@ class Application:
     def stop_input(self):
         self._input_stop = True
 
-    def exit_app(self):
+    def exit_app(self): 
+        self.run_event("on_quit",Context([],self))
         self.stop_input()
         if self.kill_on_exit:
             self.kill_app()
@@ -233,9 +234,6 @@ class Application:
         indentation = list(map(lambda x: x.name, self.indentation))
         return " ".join(indentation)
 
-    def quit_event(self):
-        self.exit_app()
-
     def eof_event(self):
         print()
         self.exit_app()
@@ -256,33 +254,29 @@ class Application:
 
     def input_loop(self):
         self.run_event("on_ready")
-        while True:
-            if self._input_stop:
-                return
+        while not self._input_stop:
             try:
                 INP = input(f"{self.get_indentation()}>")
                 self.run_event("on_input", INP)
 
             except KeyboardInterrupt:
                 self.run_event("keyboard_interrupt")
-                continue
             except EOFError:
                 self.run_event("eof")
-                continue
+
 
     def kbd_interupt_event(self):
         print()
-        self.run_event("on_quit")
-
-    def deafault_indentation(self, *ind, lock=False):
+        self.exit_app()
+    def default_indentation(self, *ind, lock=False):
         if not ind:
             raise ValueError("No indentations provided")
         for i in ind:
             if not isinstance(i, Module):
                 raise ValueError("Indentation list must contain only modules")
         self.lock_cli = lock
-        if not ind[0] in self.modules:
-            self.add_module(ind[0])
+        if not ind[-1] in self.modules:
+            self.add_module(ind[-1])
         self.indentation = list(ind)
 
     def main_menu(self):
@@ -407,11 +401,8 @@ class Application:
         self.register_event("keyboard_interrupt", self.kbd_interupt_event)
         self.register_event("command_not_found", self.command_not_found)
         self.register_event("on_command_error", self.on_command_error)
-        self.register_event("on_event_error", self.on_event_error)
         self.register_event("kill_app", self.kill_app)
-        self.register_event("on_ready", lambda: None)
         self.register_event("on_input", self.input_event)
-        self.register_event("on_quit", self.quit_event)
         self.register_event("eof", self.eof_event)
 
     def load_completer(self):
