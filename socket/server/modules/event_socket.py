@@ -26,20 +26,21 @@ class EventSocket(ServerModule):
     def _event_socket(self, ctx):
         addr = tuple(ctx.client_info.get("_event_socket_addr", None))
         key = ctx.client_info.get("_event_socket_key", None)
-
+        ctx.event_socket = False
         if not (addr and key):
             return dict(success=False, error=True, info="Incomplete packet")
 
         user_session = self.server.get_session(addr)
         if user_session is None:
-            return dict(success=False, error=True, info="session does not exist")
+            return dict(success=False, error=True, info="session key or address are incorrect")
 
         if user_session["key"] != key:
-            return dict(success=False, error=True, info="Session key does not match")
+            return dict(success=False, error=True, info="session key or address are incorrect")
 
         ctx.session["parent_addr"] = addr
         user_session["event_socket"] = ctx.conn
         user_session["event_socket_addr"] = ctx.addr
+        ctx.event_socket = True
         self.run_event(
             "event_socket_registered",
             Context(
@@ -57,6 +58,7 @@ class EventSocket(ServerModule):
     @event()
     def connection_established_info(self, ctx):
         if ctx.client_info.get("_event_socket", False) is False:
+            ctx.event_socket = False
             return dict()
 
         return dict(_event_socket=self._event_socket(ctx))
