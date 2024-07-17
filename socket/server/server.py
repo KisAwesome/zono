@@ -44,7 +44,7 @@ class SecureServer:
         self.store = Store()
         self.next_mw = False
         self.intervals = set()
-        self.modules = []
+        self.modules = {}
         self.buffer = 128
         self.paths = {}
         self.load_events()
@@ -522,7 +522,11 @@ class SecureServer:
 
     def load_module(self, module):
         if not isinstance(module, dict):
-            return
+            raise ValueError('Module must be a dict')
+
+        name = module.get("name",None)
+        if name is None:
+            raise ValueError('Module must have a name value')
         if "setup" in module:
             import traceback
 
@@ -546,8 +550,7 @@ class SecureServer:
         if "modules" in module:
             for i in module["modules"]:
                 self.load_modules(i)
-
-        self.modules.append(module)
+        self.modules[name] = module
 
     def send_raw(self, pkt, conn, buffer=None):
         buffer = buffer or self.buffer

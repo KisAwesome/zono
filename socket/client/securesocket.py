@@ -27,13 +27,16 @@ class SecureSocket:
         self.server_info = None
         self.connection_info = None
         self.kill_on_error = True
-        self.modules = []
+        self.modules = {}
         zono.events.attach(self, always_event_group=True)
         self.set_event('on_event_error',self.on_event_error)
 
     def load_module(self, module):
         if not isinstance(module, dict):
-            return
+            raise ValueError("Module must be dict")
+        name = module.get('name',None)
+        if name is None:
+            raise ValueError("Module must have a name value")
         if "setup" in module:
             module["setup"](Context(self, module=module))
         if "events" in module:
@@ -43,7 +46,7 @@ class SecureSocket:
             for i in module["modules"]:
                 self.load_modules(i)
 
-        self.modules.append(module)
+        self.modules[name] = module
 
     def wrap_event(self, event, *args, **kwargs):
         ret = self.run_event(event, *args, **kwargs)
