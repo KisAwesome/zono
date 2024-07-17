@@ -12,6 +12,9 @@ class Cookies(ServerModule):
 
     def setup(self, ctx):
         self.server = ctx.app
+        
+    @event()
+    def startup(self,ctx):
         self.check_server_name()
 
     @event()
