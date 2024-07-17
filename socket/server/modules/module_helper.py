@@ -12,8 +12,8 @@ from zono.socket.server.types import (
 class ServerModule:
     def __new__(cls, *args, **kwargs):
         cls = super().__new__(cls)
-
-        module = dict(paths=dict(), events=dict(), middleware=[], cls=cls)
+        mod_name = getattr(cls, '__name__', None) or type(cls).__name__
+        module = dict(paths=dict(), events=dict(), middleware=[], cls=cls,name=mod_name)
 
         for i in dir(cls):
             v = getattr(cls, i)
