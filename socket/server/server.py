@@ -325,12 +325,13 @@ class SecureServer:
         self.sessions[addr] = Store(conn=conn)
 
     def handle_client(self, conn, addr):
+        ctx = Context(self, conn=conn, addr=addr)
         if not self.wrap_bool_event(
-            self.run_event("connect_check", Context(self, conn=conn, addr=addr)),
+            self.run_event("connect_check", ctx),
             default=True,
         ):
             conn.close()
-            self.run_event("on_connection_refusal", Context(self, conn=conn, addr=addr))
+            self.run_event("on_connection_refusal", ctx)
             sys.exit()
 
         self.create_connection_session(conn, addr)
@@ -339,13 +340,14 @@ class SecureServer:
             self.get_session(addr)["key"] = key
 
         except ReceiveError as e:
+            ctx.error = e
+            ctx.session =self.get_session(addr)
             self.run_event(
                 "on_connect_fail",
-                Context(
-                    self, error=e, addr=addr, conn=conn, session=self.get_session(addr)
-                ),
+                ctx
             )
             return self._close_socket(conn, addr,False)
+        ctx.session = self.get_session(addr)
         self.send(
             dict(
                 status=200,
@@ -356,9 +358,7 @@ class SecureServer:
                 **(
                     self.wrap_event(
                         "server_info",
-                        Context(
-                            self, addr=addr, conn=conn, session=self.get_session(addr)
-                        ),
+                        ctx
                     )
                     or {}
                 ),
@@ -369,29 +369,17 @@ class SecureServer:
         )
 
         client_info = self.recv(conn, addr, self.buffer, 2)
-
+        ctx.client_info = client_info
         if not self.wrap_bool_event(
             self.run_event(
                 "client_info",
-                Context(
-                    self,
-                    addr=addr,
-                    conn=conn,
-                    client_info=client_info,
-                    session=self.get_session(addr),
-                ),
+                ctx,
             ),
             default=True,
         ):
             self.run_event(
                 "on_connection_refusal",
-                Context(
-                    self,
-                    conn=conn,
-                    addr=addr,
-                    client_info=client_info,
-                    session=self.get_session(addr),
-                ),
+                ctx,
             )
             return self.close_socket(conn, addr)
 
@@ -403,13 +391,7 @@ class SecureServer:
                 **(
                     self.wrap_event(
                         "connection_established_info",
-                        Context(
-                            self,
-                            addr=addr,
-                            conn=conn,
-                            client_info=client_info,
-                            session=self.get_session(addr),
-                        ),
+                        ctx,
                     )
                     or {}
                 ),
@@ -419,12 +401,12 @@ class SecureServer:
         )
         self.run_event(
             "on_connect",
-            Context(self, conn=conn, addr=addr, session=self.get_session(addr)),
+            ctx,
         )
         if self.wrap_bool_event(
             self.run_event(
                 "start_event_loop",
-                Context(self, conn=conn, addr=addr, session=self.get_session(addr)),
+                ctx,
             ),
             default=True,
         ):
