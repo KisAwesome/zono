@@ -18,11 +18,13 @@ class Cookies(ServerModule):
     def connection_established_info(self, ctx):
         if not isinstance(ctx.client_info, dict):
             return
-        ctx.cookies = ctx.client_info.get("cookies", {})
+        ctx.cookies = ctx.client_info.get("cookies", None)
+        ctx.session.sent_cookies = isinstance(ctx.cookies,dict)
+        ctx.cookies = ctx.cookies or {}
         ctx.app.run_event('cookies_loaded',ctx)
         cookies = ctx.app.wrap_event("create_cookies", ctx)
         if self.expires is not None:
-            if "expires" not in ctx.cookies:
+            if "expires" not in ctx.cookies: 
                 cookies["expires"] = time.time() + self.expires
             else:
                 cookies["expires"] = ctx.cookies["expires"]

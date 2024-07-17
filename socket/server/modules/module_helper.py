@@ -3,7 +3,7 @@ from zono.socket.server.types import (
     Event,
     EventGroup,
     Middleware,
-    request,
+    route,
     middleware,
     event,
 )

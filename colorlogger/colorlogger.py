@@ -60,11 +60,8 @@ class ColoredFormatter(logging.Formatter):
 
 
 class NoColorFormat(ColoredFormatter):
-    def __init__(self,cls):
-        self.cls = cls
-    
     def format(self, record):
-        message = self.cls.format(record)
+        message = super().format(record)
         message = re.sub(r'\x1b[^m]*m','', message)
         return message
     

@@ -36,7 +36,9 @@ class Cookies(ClientModule):
         with open(get_file("cookies.yaml"), "r") as file:
             cookies = form_cookies(yaml.safe_load(file))
 
-        server_name = self.client.server_info.get("name", "null")
+        server_name = self.client.server_info.get("name", None)
+        if server_name is None:
+            return dict(cookies=dict())
         client_cookies = form_cookies(cookies.get(server_name, {}))
      
   

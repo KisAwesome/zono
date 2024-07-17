@@ -167,13 +167,10 @@ class Command:
 
 class Module:
     def __init__(self, name, description=""):
-        attach(self, False)
+        attach(self, True)
         self.name = name
         self.description = description
         self.commands = []
-        self.events = {}
-        self.events_loaded = False
-        self.load_events()
 
     def add_command_(self, command):
         if not isinstance(command, Command):
@@ -213,12 +210,3 @@ class Module:
         traceback.print_exception(ctx.exc_info[0], ctx.exc_info[1], ctx.exc_info[2])
         print(f"\nthis error occurred in {ctx.command.name}")
         sys.exit()
-
-    def on_load(self, ctx):
-        pass
-
-    def load_events(self):
-        if self.events_loaded:
-            return
-        self.register_event("on_load", self.on_load)
-        self.events_loaded = True

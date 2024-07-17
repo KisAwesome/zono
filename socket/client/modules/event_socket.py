@@ -122,4 +122,5 @@ class EventSocket(ClientModule):
     def on_close(self, ctx):
         if hasattr(self,'event_socket'):
             self.event_socket.close()
+        if hasattr(self,'event_thread'):
             self.event_thread.join()

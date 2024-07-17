@@ -5,6 +5,9 @@ from zono.events import Event, EventGroup
 class Client(object):
     def __new__(cls, *args, **kwargs) -> SecureSocket:
         socket = SecureSocket()
+        if hasattr(cls, "modules"):
+            for i in cls.modules:
+                socket.load_module(i)
         if cls == Client:
             return socket
         cls = super().__new__(cls)

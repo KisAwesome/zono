@@ -43,12 +43,12 @@ class SecureServer:
         self.format = "utf-8"
         self.store = Store()
         self.next_mw = False
-        self.intervals = []
+        self.intervals = set()
         self.modules = []
         self.buffer = 128
         self.paths = {}
         self.load_events()
-
+    
     def wrap_event(self, event, *args, **kwargs):
         ret = self.run_event(event, *args, **kwargs)
         if isinstance(ret, dict) or ret is None:
@@ -99,7 +99,6 @@ class SecureServer:
         self.next_mw = True
 
     def connection_status(self, conn):
-        # return conn.getsockopt(socket.SOL_SOCKET, socket.SO_CONNECTED)
         if "closed" in str(conn):
             return False
         try:
@@ -234,7 +233,7 @@ class SecureServer:
         self.next_mw = True
         for i in self.middlewares:
             if not self.next_mw is True:
-                break
+                return
             self.next_mw = False
             ret = i(ctx)
             if isinstance(ret, MiddlewareError):
@@ -262,12 +261,11 @@ class SecureServer:
                 self.logger.warning(
                     f"{path} did not return a response to the client"
                 )
-                self._warn_missing_response = False
+                # self._warn_missing_response = False
 
             if isinstance(e, RequestError):
                 if self.isevent("on_request_error"):
                     return self.run_event("on_request_error", e.ctx, e.error)
-
                 raise e.error
 
             self.run_event('on_request_processed',ctx)
@@ -484,7 +482,7 @@ class SecureServer:
         print(f"\nthis error occurred in {event}", file=sys.stderr)
         if self.kill_on_error:
             self.shutdown()
-            sys.exit(1)
+
 
     def on_request_error(self, ctx, error):
         traceback.print_exception(
@@ -506,8 +504,7 @@ class SecureServer:
         else:
             print(f"\nthis error occurred in middleware function", file=sys.stderr)
         if self.kill_on_error:
-            # self.shutdown()
-            raise error
+            self.shutdown()
 
 
     def session_update(self, key, value, action):
@@ -578,10 +575,14 @@ class SecureServer:
         buffer = buffer or self.buffer
         return zono.socket.recv_raw(conn, buffer, self.format, timeout)
 
+    def start_intervals(self):
+        for i in self.intervals:
+            i.start()
     def is_event_socket(self, addr, *_):
         return False
 
     def run(self):
         self.run_event('startup',Context(self))
+        self.start_intervals()
         self.init_socket()
         self.accept_connections()

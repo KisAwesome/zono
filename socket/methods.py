@@ -52,7 +52,7 @@ def recv(conn, buffer, timeout, session_key, _format):
         conn.settimeout(timeout)
     except OSError as err:
         if err.errno == errno.EBADF:
-            raise ReceiveError(6) from wrap_error(err)
+            raise ReceiveError(14) from wrap_error(err)
     try:
         pck = _recv(conn, buffer).decode(_format)
         if len(pck) == 0:

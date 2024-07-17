@@ -35,6 +35,10 @@ def get_children(instance, key):
         children.append((depth, v[2], v[0]))
     return children
 
+def process_function_results(results):
+    if isinstance(results, bool):
+        return [results,'']
+    return list(results)
 
 def _validate(instance, schema, depth):
     errors = []
@@ -84,7 +88,7 @@ def _validate(instance, schema, depth):
             func = v[1]
             if func is None:
                 func = lambda x: (True, "")
-            results = [*(func(instance[k]))]
+            results = process_function_results(func(instance[k]))
             if results[0] is False or results[0] is None:
                 msg = f"Unable to validate {depth}{k}"
                 if len(results) > 1:
@@ -107,7 +111,7 @@ def _validate(instance, schema, depth):
         if not callable(func):
             results = [True,'']
         else:
-            results = [*func(instance)]
+            results = process_function_results(func(instance))
         if results[0] is False or results[0] is None:
             msg = f"Unable to validate"
             if len(results) > 1:

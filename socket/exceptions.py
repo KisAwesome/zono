@@ -11,7 +11,8 @@ errors = {
     10: "Lost connection to the server while performing initial handshake",
     11: "An unknown error occurred while performing initial handshake",
     12:"Recieved no message length bytes",
-    13:"An established connection to the server was aborted"
+    13:"An established connection to the server was aborted",
+    14:"Attempting to receive through a closed connection"
 }
 
 
@@ -23,7 +24,7 @@ class TransmissionError(Exception):
         super().__init__()
 
     def __str__(self):
-        return f"[Errno {self.errorno}] {self.errormsg}"
+        return f"SocketError [Errno {self.errorno}] {self.errormsg}"
 
 
 class ReceiveError(TransmissionError):

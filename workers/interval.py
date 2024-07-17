@@ -65,3 +65,9 @@ def get_interval(id):
 def get_intervals():
     with _intervals_lock:
         return _intervals.copy()
+
+
+
+def schedule_event(event,time,*args,**kwargs):
+    wrapper = lambda:event(*args,**kwargs) 
+    threading.Timer(time,wrapper).start()

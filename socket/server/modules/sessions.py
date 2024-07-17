@@ -28,6 +28,7 @@ class PersistentSessions(ServerModule):
         for i in (
             "conn",
             "key",
+            'sent_cookies',
             self.cookie_name,
             *(
                 self.server.wrap_list_event(

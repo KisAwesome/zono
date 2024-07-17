@@ -2,6 +2,7 @@ from .exceptions import RequestError, MiddlewareError
 from zono.events import EventGroup, EventGroupReturn
 from zono.events import Event
 from zono.store import Store
+import zono.workers
 import traceback
 import pprint
 import sys
@@ -10,7 +11,8 @@ import sys
 has_instance = lambda x: hasattr(x, "instance")
 
 
-def request(path: str = None):
+        
+def route(path: str = None):
     def wrapper(func):
         name = path
         if path is None:
@@ -19,6 +21,15 @@ def request(path: str = None):
         if not callable(func):
             raise ValueError("Request function must be callable")
         return Request(name, func)
+
+    return wrapper
+
+
+def interval(time):
+    def wrapper(func):
+        if not callable(func):
+            raise ValueError(" function must be callable")
+        return Interval(time, func)
 
     return wrapper
 
@@ -47,6 +58,32 @@ def send_wrapper(ctx, app):
         ctx.responses.append(pkt)
 
     return wrapped
+
+
+class Interval(Event):
+    def __init__(self,tick,callback):
+        self.interval = zono.workers.Interval(tick,self.__call__,True)
+        name = f'interval-{self.interval.interval_id}'
+        if has_instance(self):
+            self.instance = callback.instance
+        super().__init__(callback,name)
+        
+    
+    def __call__(self, *args,**kwargs):
+        try:
+            if has_instance(self):
+                return self.callback(self.instance, *args,**kwargs)
+            self.callback(ctx,*args,**kwargs)
+        except BaseException as e:
+            if isinstance(e, SystemExit):
+                sys.exit()
+
+            info = sys.exc_info()
+            err = RequestError(ctx, e, info)
+            if callable(self.error_handler):
+                self.error_handler(err.ctx)
+                return
+            raise err
 
 
 class Context:
