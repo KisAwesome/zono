@@ -152,7 +152,7 @@ class Middleware(Event):
             if isinstance(e, SystemExit):
                 sys.exit()
             info = sys.exc_info()
-            err = MiddlewareError(ctx, e, info)
+            err = MiddlewareError(ctx, e, info) 
             if callable(self.error_handler):
                 self.error_handler(err.ctx)
                 return

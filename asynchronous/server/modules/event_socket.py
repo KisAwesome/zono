@@ -1,5 +1,5 @@
 from .module_helper import ServerModule, event
-from zono.socket.server.types import Context
+from zono.asynchronous.server.types import Context
 from zono.socket.server.exceptions import ClientError, client_errors
 
 
@@ -24,7 +24,7 @@ class EventSocket(ServerModule):
             return True
         return False
 
-    def _event_socket(self, ctx):
+    async def _event_socket(self, ctx):
         addr = tuple(ctx.client_info.get("_event_socket_addr", None))
         key = ctx.client_info.get("_event_socket_key", None)
         ctx.event_socket = False
@@ -42,7 +42,7 @@ class EventSocket(ServerModule):
         user_session["event_socket"] = ctx.conn
         user_session["event_socket_addr"] = ctx.addr
         ctx.event_socket = True
-        self.run_event(
+        await self.run_event(
             "event_socket_registered",
             Context(
                 self.server,
@@ -57,26 +57,26 @@ class EventSocket(ServerModule):
         )
 
     @event()
-    def connection_established_info(self, ctx):
+    async def connection_established_info(self, ctx):
         if ctx.client_info.get("_event_socket", False) is False:
             ctx.event_socket = False
             return dict()
 
-        return dict(_event_socket=self._event_socket(ctx))
+        return dict(_event_socket=await self._event_socket(ctx))
 
     @event()
-    def server_info(self, ctx):
+    async def server_info(self, ctx):
         return dict(event_socket=True)
 
     @event()
-    def on_session_close(self, ctx):
-        if ctx.session.get("event_socket", None) is not None:
-            self.server.close_socket(
+    async def on_session_close(self, ctx):
+        if ctx.session.get("event_socket", None) is not None and ctx.app._shutting_down is False:
+            await self.server.close_socket(
                 ctx.session.event_socket, ctx.session.event_socket_addr
             )
-
+ 
     @event()
-    def create_context(self, ctx):
+    async def create_context(self, ctx):
         if ctx._dict.get("addr", None) is not None:
             ctx.send_event = lambda event: self.send_event(ctx.addr, event)
 
@@ -95,7 +95,7 @@ class EventSocket(ServerModule):
 
         return True
 
-    def send_event(self, addr, event):
+    async def send_event(self, addr, event):
         session = self.server.get_session(addr)
         if not session:
             raise ValueError("Session not found")
@@ -107,7 +107,7 @@ class EventSocket(ServerModule):
                 129, ctx=Context(self.server, addr=addr, event_to_send=event)
             )
 
-        self.server.send(event, ev_sock, ev_addr)
+        await self.server.send(event, ev_sock, ev_addr)
     def has_event_socket(self,addr):
         session = self.server.get_session(addr)
         if not session:
