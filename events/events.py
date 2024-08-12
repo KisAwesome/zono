@@ -91,13 +91,14 @@ class EventManager:
     def run_event(self, event, *args, **kwargs):
         ret = self._run_event(event, *args, **kwargs)
         if isinstance(ret, EventError):
-            r = self._run_event("on_event_error", ret.error, event, ret.exc_info)
-            if isinstance(r, EventError):
-                raise r.error
-                # g =self._run_event('event_handler_error',ret.error, event, ret.exc_info,r.error,'on_event_error',r.exc_info)
+            if  self.isevent('on_event_error'):
+                r = self._run_event("on_event_error", ret.error, event, ret.exc_info)
+                if isinstance(r, EventError):
+                    raise r.error
             
-                # if isinstance(g, EventError):
-                #     raise ret.error
+            else:
+                raise ret.error
+            
             return
         return ret
 

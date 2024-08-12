@@ -10,7 +10,7 @@ errors = {
     9: "Initial handshake with the server failed",
     10: "Lost connection to the server while performing initial handshake",
     11: "An unknown error occurred while performing initial handshake",
-    12:"Recieved no message length bytes",
+    12:"Recieved no bytes connection has been closed while receiving",
     13:"An established connection to the server was aborted",
     14:"Attempting to receive through a closed connection"
 }
@@ -36,4 +36,6 @@ class SendError(TransmissionError):
 
 
 class ConnectionFailed(TransmissionError):
-    pass
+    def __str__(self):
+        return f"ConnectionFailed [Errno {self.errorno}] {self.errormsg}"
+

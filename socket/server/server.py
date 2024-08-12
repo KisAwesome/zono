@@ -25,7 +25,6 @@ import sys
 class SecureServer:
     def __init__(self, ip="", port=None):
         self.port = port
-        self.hostname = socket.gethostname()
         self.ip = ip or self.get_server_ip()
         self.logger =  zono.colorlogger.create_logger("zono.server", level=1)
         self.Crypt = zono.zonocrypt.zonocrypt()
@@ -48,6 +47,7 @@ class SecureServer:
         self.buffer = 128
         self.paths = {}
         self.load_events()
+        # self.threads = []
     
     def wrap_event(self, event, *args, **kwargs):
         ret = self.run_event(event, *args, **kwargs)
@@ -135,6 +135,8 @@ class SecureServer:
             except:
                 pass
             self.socket.close()
+        # for t in self.threads:
+        #     t.join()
         self.run_event('server_closed',Context(self))
 
     def init_socket(self):
@@ -180,10 +182,12 @@ class SecureServer:
             except KeyboardInterrupt:
                 self.shutdown()
             else:
-                threading.Thread(
+                t = threading.Thread(
                     target=self.handle_client,
                     args=(conn, addr),
-                ).start()
+                )
+                t.start()
+                # self.threads.append(t)
 
     def recv_loop(self, conn, addr):
         while True:
@@ -453,7 +457,7 @@ class SecureServer:
         return wrapper
 
     def get_server_ip(self):
-        return socket.gethostbyname(self.hostname)
+        return 'localhost'
 
     def on_event_error(self, error, event, exc_info):
 

@@ -11,7 +11,7 @@ import secrets
 import socket
 import sys
 
-Crypt = zono.zonocrypt.zonocrypt()
+Crypt = zono.zonocrypt.zonocrypt(serialization='yaml')
 
 
 def wrap_error(e):
