@@ -73,7 +73,7 @@ class Interval(Event):
         try:
             if has_instance(self):
                 return self.callback(self.instance, *args,**kwargs)
-            self.callback(ctx,*args,**kwargs)
+            self.callback(*args,**kwargs)
         except BaseException as e:
             if isinstance(e, SystemExit):
                 sys.exit()
