@@ -1,4 +1,4 @@
-from .exceptions import RequestError, MiddlewareError
+from .exceptions import RequestError, MiddlewareError,ApplicationError
 from zono.events import EventGroup, EventGroupReturn
 from zono.events import Event
 from zono.store import Store
@@ -79,7 +79,7 @@ class Interval(Event):
                 sys.exit()
 
             info = sys.exc_info()
-            err = RequestError(ctx, e, info)
+            err = ApplicationError(None, e, info)
             if callable(self.error_handler):
                 self.error_handler(err.ctx)
                 return
