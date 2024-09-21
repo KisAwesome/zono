@@ -123,6 +123,7 @@ class SecureSocket:
         self.interval = zono.workers.set_interval(
             status["timeout"] * 0.85, self.keep_alive, daemon=True
         )
+        self.addr=tuple(self.socket.getsockname())
         self.run_event(
             "on_connect",
             Context(
