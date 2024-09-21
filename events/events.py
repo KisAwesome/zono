@@ -1,7 +1,7 @@
 from .types import EventGroup, Event, EventError
 import traceback
 
-__all__ = [
+ev_manager_attrs = [
     "run_event",
     "events",
     "isevent",
@@ -116,7 +116,7 @@ class EventManager:
     def attach(self, cls):
         if not self.attached_to is None:
             raise Exception("This event manager is already attached to a class")
-        for name in __all__:
+        for name in ev_manager_attrs:
             if hasattr(cls, name):
                 continue
             attr = getattr(self, name)
@@ -129,7 +129,7 @@ class EventManager:
     def deattach(self):
         if self.attached_to is None:
             raise Exception("This event manager is not attached to a class")
-        for name in __all__:
+        for name in ev_manager_attrs:
             if hasattr(self.attached_to, name):
                 delattr(self.attached_to, name)
         if hasattr(self.attached_to, "event_manager"):
