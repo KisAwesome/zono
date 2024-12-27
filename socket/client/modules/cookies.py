@@ -60,12 +60,13 @@ class Cookies(ClientModule):
         client_cookies = self.client.final_connect_info.get("cookies", None)
         if (name and client_cookies) is None:
             return
+        client_cookies = client_cookies or {}
         self.save(name, client_cookies)
 
     def save(self, name=None, client_cookies=None):
         check_cookie_file()
         name = name or self.client.server_info.get("name", None)
-        client_cookies = client_cookies or self.client.cookies
+        client_cookies = self.client.cookies if client_cookies is  None else client_cookies
         if (name and client_cookies) is None:
             raise ValueError("Name and cookies need to be specified")
 

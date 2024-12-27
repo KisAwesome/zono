@@ -12,7 +12,8 @@ errors = {
     11: "An unknown error occurred while performing initial handshake",
     12:"Recieved no bytes connection has been closed while receiving",
     13:"An established connection to the server was aborted",
-    14:"Attempting to receive through a closed connection"
+    14:"Attempting to receive through a closed connection",
+    15:"Attempting socket operation on a closed connection"
 }
 
 
@@ -32,6 +33,9 @@ class ReceiveError(TransmissionError):
 
 
 class SendError(TransmissionError):
+    pass
+
+class ConnectionClosed(TransmissionError):
     pass
 
 

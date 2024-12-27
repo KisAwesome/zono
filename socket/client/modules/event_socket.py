@@ -50,10 +50,10 @@ class SecureEventSocket(SecureSocket):
         key_deriv = num1 + num2 + num3
         self.session_key = Crypt.hashing_function(key_deriv)
 
+        self.connection = True
         self.status = self.recv(buffer=self.buffer)
         self.buffer = self.status.get("buffer", self.buffer)
         self.format = self.status.get("format", self.format)
-
         self.send(
             dict(
                 _event_socket=True,

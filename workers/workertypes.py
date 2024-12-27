@@ -30,3 +30,17 @@ class Process:
 
     # def terminate(self):
     #     wrap_conv(self.thread.terminate)
+
+if __name__ == "__main__":
+    import time
+    def d():
+        x = 0
+        while True:
+            print('Ping' if x %2 == 0 else 'Pong')
+            x+=1
+            time.sleep(0.5)
+    
+    t = Thread(target=d)
+    t.start()
+    time.sleep(10)
+    t.terminate()

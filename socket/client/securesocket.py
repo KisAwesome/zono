@@ -2,6 +2,7 @@ import cryptography.hazmat.primitives.asymmetric.padding
 import cryptography.hazmat.primitives.asymmetric.rsa
 import cryptography.hazmat.primitives.serialization
 from .types import Context
+import zono.colorlogger 
 import zono.zonocrypt
 import zono.workers
 import zono.events
@@ -17,7 +18,7 @@ Crypt = zono.zonocrypt.zonocrypt(serialization='yaml')
 def wrap_error(e):
     if zono.socket.show_full_error:
         return e
-
+    
 
 class SecureSocket:
     def __init__(self):
@@ -26,7 +27,9 @@ class SecureSocket:
         self.timeout = None
         self.server_info = None
         self.connection_info = None
+        self.logger = zono.colorlogger.create_logger('zono.socket')
         self.kill_on_error = True
+        self.connection = False
         self.modules = {}
         zono.events.attach(self, always_event_group=True)
         self.set_event('on_event_error',self.on_event_error)
@@ -59,8 +62,22 @@ class SecureSocket:
                 continue
             n |= i
         return n
+    
+    def check_connection(self):
+        return self.connection and self.socket
+    
+    def ensure_connection(self):
+        if not self.check_connection():
+            raise zono.socket.ConnectionClosed(15)
+    
+    def ensure_raw_connection(self):
+        if getattr(self, 'socket', None) is None:
+            raise zono.socket.ConnectionClosed(15)
+    
 
     def connect(self, addr):
+        if self.connection or getattr(self,'socket',False):
+            raise RuntimeError("Connection already established")
         try:
             self._connect(addr)
         except zono.socket.ReceiveError as e:
@@ -107,7 +124,9 @@ class SecureSocket:
         key_deriv = num1 + num2 + num3
         self.session_key = Crypt.hashing_function(key_deriv)
 
+        self.connection = True
         status = self.recv(timeout=1)
+        status['addr'] = addr
         self.connection_info = status
         self.server_info = status.copy()
         self.clean_server_info()
@@ -135,17 +154,35 @@ class SecureSocket:
         )
 
     def keep_alive(self):
-        return self.send(dict(_keepalive=True, path=None))
+        try:
+            return self.send(dict(_keepalive=True, path=None))
+        except zono.socket.SendError as e:
+            try: 
+                self.send(dict(_keepalive=True, path=None))
+                return
+            except:
+                pass
+
+            if e.errorno in (6,):
+                self.logger.error('Keep alive failed closing socket')
+                self.close()
+                return 
+            raise e
+        except zono.socket.ConnectionClosed:
+            pass
+
 
     def clean_server_info(self):
         for i in ("info", "status", "success"):
             self.server_info.pop(i, None)
 
     def send(self, pkt, buffer=None):
+        self.ensure_connection()
         buffer = buffer or self.buffer
         return zono.socket.send(self.socket, pkt, self.session_key, self.format, buffer)
 
     def recv(self, buffer=None, timeout=-1):
+        self.ensure_connection()
         buffer = buffer or self.buffer
         if timeout == -1:
             timeout = self.timeout
@@ -160,15 +197,20 @@ class SecureSocket:
             return self.recv(buffer=buffer, timeout=timeout)
 
     def send_raw(self, pkt):
+        self.ensure_raw_connection()
         return zono.socket.send_raw(self.socket, pkt, self.format, self.buffer)
 
     def recv_raw(self, timeout=-1):
+        self.ensure_raw_connection()
         if timeout == -1:
             timeout = self.timeout
         return zono.socket.recv_raw(self.socket, self.buffer, self.format, timeout)
 
     def close(self):
+        if self.check_connection() is False:
+            return
         self.socket.close()
+        self.connection = False
         if hasattr(self, "interval"):
             zono.workers.cancel_interval(self.interval)
         self.run_event("on_close", Context(self))

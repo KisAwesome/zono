@@ -1,3 +1,4 @@
+import zono.workers
 from .types import (
     Store,
     Event,
@@ -14,7 +15,6 @@ import zono.workers
 import zono.events
 import zono.socket
 import traceback
-import threading
 import secrets
 import socket
 import errno
@@ -147,6 +147,7 @@ class SecureServer:
     def _close_socket(self, conn, addr,connected=True):
         session = self.get_session(addr)
         if session is not None:
+            session.get('_internal').get('_thread').terminate()
             self.run_event(
                 "on_session_close",
                 Context(self, addr=addr, conn=conn, session=session),
@@ -182,10 +183,12 @@ class SecureServer:
             except KeyboardInterrupt:
                 self.shutdown()
             else:
-                t = threading.Thread(
+                info = {}
+                t = zono.workers.Thread(
                     target=self.handle_client,
-                    args=(conn, addr),
+                    args=(conn, addr,info),
                 )
+                info['_thread'] = t
                 t.start()
                 # self.threads.append(t)
 
@@ -325,10 +328,10 @@ class SecureServer:
         key_deriv = num1 + num2 + num3
         return self.Crypt.hashing_function(key_deriv)
 
-    def create_connection_session(self, conn, addr):
-        self.sessions[addr] = Store(conn=conn)
+    def create_connection_session(self, conn, addr,info):
+        self.sessions[addr] = Store(conn=conn,_internal=info)
 
-    def handle_client(self, conn, addr):
+    def handle_client(self, conn, addr,info):
         ctx = Context(self, conn=conn, addr=addr)
         if not self.wrap_bool_event(
             self.run_event("connect_check", ctx),
@@ -338,7 +341,7 @@ class SecureServer:
             self.run_event("on_connection_refusal", ctx)
             sys.exit()
 
-        self.create_connection_session(conn, addr)
+        self.create_connection_session(conn, addr,info)
         try:
             key = self.init_connection(conn)
             self.get_session(addr)["key"] = key

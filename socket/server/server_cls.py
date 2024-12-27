@@ -4,7 +4,7 @@ from zono.events import Event
 
 
 class Server:
-    def __new__(cls, ip="", port=None, *args, **kwargs):
+    def __new__(cls, ip="", port=None, *args, **kwargs) -> SecureServer:
         server = SecureServer(ip, port)
         if cls == Server:
             return server

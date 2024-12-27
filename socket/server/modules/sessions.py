@@ -27,6 +27,7 @@ class PersistentSessions(ServerModule):
     def sanitize_session(self, session):
         for i in (
             "conn",
+            '_internal',
             "key",
             'sent_cookies',
             self.cookie_name,

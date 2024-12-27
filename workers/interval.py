@@ -52,7 +52,7 @@ def cancel_interval(id):
     with _intervals_lock:
         inter = _intervals.pop(id, None)
         if inter is None:
-            raise RuntimeError("Interval id does not exist")
+            return
 
         inter.cancel()
 

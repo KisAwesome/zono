@@ -5,7 +5,7 @@ import inspect
 
 class Module(object):
     def __new__(cls, *args, **kwargs):
-        cls = super().__new__(cls, *args, **kwargs)
+        cls = super().__new__(cls)
         commands = []
         events = []
         for i in dir(cls):
