@@ -175,6 +175,7 @@ class YoutubeSong(_Song):
         response = requests.get(self.video["thumbnail"])
         if response.status_code in allowed_codes:
             self._artwork = response.content
+            self.loaded_artwork = True
             return self._artwork
 
         else:

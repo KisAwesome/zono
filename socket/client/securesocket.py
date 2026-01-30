@@ -12,7 +12,7 @@ import secrets
 import socket
 import sys
 
-Crypt = zono.zonocrypt.zonocrypt(serialization='yaml')
+Crypt = zono.zonocrypt.zonocrypt(serialization='umsgpack')
 
 
 def wrap_error(e):
@@ -76,8 +76,8 @@ class SecureSocket:
     
 
     def connect(self, addr):
-        if self.connection or getattr(self,'socket',False):
-            raise RuntimeError("Connection already established")
+        # if self.connection or getattr(self,'socket',False):
+            # raise RuntimeError("Connection already established")
         try:
             self._connect(addr)
         except zono.socket.ReceiveError as e:

@@ -146,8 +146,9 @@ class SecureServer:
 
     def _close_socket(self, conn, addr,connected=True):
         session = self.get_session(addr)
+        thread = None
         if session is not None:
-            session.get('_internal').get('_thread').terminate()
+            thread = session.get('_internal').get('_thread')
             self.run_event(
                 "on_session_close",
                 Context(self, addr=addr, conn=conn, session=session),
@@ -157,6 +158,7 @@ class SecureServer:
             conn.shutdown(socket.SHUT_RDWR)
         except OSError:
             pass
+        thread.terminate()
         conn.close()
         if connected:
             self.run_event(

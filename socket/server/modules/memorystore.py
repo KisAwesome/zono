@@ -24,7 +24,7 @@ class MemorySessionStore(ServerModule):
 
     @event()
     def get_all_sessions(self):
-        return self.sessions
+        return self.sessions.copy()
 
     @event()
     def new_session(self, ctx, session):
